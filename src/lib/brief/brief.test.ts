@@ -32,9 +32,9 @@ describe("buildMorningBrief", () => {
   });
 
   it("suit la progression du jour", () => {
-    expect(buildMorningBrief(base).progress).toEqual({ done: 3, total: 8, label: "3 / 8 relances faites aujourd'hui" });
+    expect(buildMorningBrief(base).progress).toEqual({ done: 3, total: 8, label: "3 / 8 relances préparées aujourd'hui" });
     expect(buildMorningBrief({ ...base, progress: { done: 1, total: 1 } }).progress!.label).toBe(
-      "Toutes les relances du jour sont faites"
+      "Toutes les relances du jour sont préparées"
     );
     expect(buildMorningBrief({ ...base, progress: { done: 0, total: 0 } }).progress).toBeNull();
   });

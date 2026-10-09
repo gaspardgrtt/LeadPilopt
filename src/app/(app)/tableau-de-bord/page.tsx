@@ -15,6 +15,7 @@ import {
   getWeeklyActivity,
 } from "@/lib/data/prospects";
 import { explainScore } from "@/lib/scoring/score";
+import { displayName } from "@/lib/user/display-name";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -35,8 +36,9 @@ export default async function TableauDeBordPage() {
   if (stats.nbProspects === 0) redirect("/import");
 
   const importAge = stats.dernierImportLe ? daysSince(stats.dernierImportLe) : null;
-  const displayName = profil?.nom?.trim() || profil?.email?.split("@")[0] || "";
-  const firstName = displayName ? displayName.split(/[\s._-]+/)[0].replace(/^./, (c) => c.toUpperCase()) : "";
+  // Un nom déduit d'une adresse sans séparateur (« jeanmartin ») ne sert pas de prénom.
+  const name = displayName(profil?.nom, profil?.email);
+  const firstName = name.isFallback && !name.full.includes(" ") ? "" : name.first;
 
   return (
     <PageContainer className="max-w-[1280px]">

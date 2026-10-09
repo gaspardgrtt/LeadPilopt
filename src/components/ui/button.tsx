@@ -16,7 +16,7 @@ const buttonVariants = cva(
           "bg-primary bg-[image:linear-gradient(180deg,rgb(255_255_255/0.16),rgb(255_255_255/0)_60%)] text-primary-foreground shadow-primary hover:bg-primary-hover hover:shadow-glow active:translate-y-px",
         secondary:
           "border border-border-strong bg-surface text-foreground shadow-xs hover:border-foreground-tertiary/40 hover:bg-surface-subtle hover:shadow-card active:translate-y-px",
-        soft: "bg-primary-soft text-primary hover:bg-primary-muted/70",
+        soft: "bg-primary-soft text-primary-hover hover:bg-primary-muted/70",
         ghost:
           "text-foreground-secondary hover:bg-surface-subtle hover:text-foreground",
         danger: "bg-danger text-white shadow-xs hover:bg-danger/90",

@@ -9,6 +9,7 @@ import { ScoreGauge } from "@/components/shared/score-gauge";
 import { SilenceDays } from "@/components/shared/silence-days";
 import { ScoreExplanationCard } from "@/components/score/score-explanation-card";
 import { MarkScoreSeen } from "@/components/onboarding/onboarding";
+import { detectFollowupContext, scenarioFromTag } from "@/lib/followups/templates";
 import type { ProspectDetail } from "@/lib/data/prospects";
 import type { ScoreExplanation } from "@/lib/scoring/score";
 import { daysSince, formatDate, formatEuro } from "@/lib/format";
@@ -41,6 +42,7 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
   const silence = prospect.date_dernier_contact ? daysSince(prospect.date_dernier_contact) : null;
   const stage = prospect.etape ? STAGE_LABELS[prospect.etape] : null;
   const shownScore = explanation.kind === "scored" ? explanation.score : prospect.score;
+  const followupContext = detectFollowupContext(prospect);
 
   return (
     <>
@@ -95,9 +97,17 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
             nextProspectId={position?.nextId ?? null}
             defaultTone={defaultTone}
             contactEmail={prospect.contact_email}
+            context={{ recommended: followupContext.scenario, reasons: followupContext.reasons }}
             relance={
               relance
-                ? { id: relance.id, objet: relance.objet, corps: relance.corps, ton: relance.ton, copiee: Boolean(relance.copiee_le) }
+                ? {
+                    id: relance.id,
+                    objet: relance.objet,
+                    corps: relance.corps,
+                    ton: relance.ton,
+                    scenario: scenarioFromTag(relance.modele_ia),
+                    copiee: Boolean(relance.copiee_le),
+                  }
                 : null
             }
           />

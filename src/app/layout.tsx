@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s · LeadPilot",
   },
   description:
-    "L'assistant commercial qui vous dit quels dossiers relancer aujourd'hui, combien d'argent est en jeu, et rédige la relance.",
+    "L'assistant commercial qui vous dit quels dossiers relancer aujourd'hui, combien d'argent est en jeu, et prépare la relance.",
 };
 
 export default function RootLayout({

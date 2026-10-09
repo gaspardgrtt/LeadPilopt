@@ -24,18 +24,6 @@ export const SAMPLE_PROSPECTS: SampleProspect[] = [
   { id: "5", company: "Brio Logistique", contact: "Sarah Benali", email: "s.benali@brio.fr", stage: "qualification", amount: 20500, lastContact: "2026-09-16", silence: 22, score: 52, recoverable: 3600, status: "a_traiter" },
 ];
 
-export const SAMPLE_FOLLOWUP = {
-  subject: "Proposition Nimbus · budget Q4",
-  body: `Bonjour Claire,
-
-Début septembre, vous attendiez la validation du budget Q4 pour avancer sur notre proposition.
-
-Est-ce toujours d'actualité ? Je peux vous appeler jeudi à 10 h pour faire le point.
-
-Bien cordialement,
-Paul`,
-};
-
 /** Ligne `prospects` complète à partir d'un prospect d'exemple (aperçus de la fiche et de la liste). */
 export function sampleProspectRow(p: SampleProspect, notes: string | null = null): Tables<"prospects"> {
   return {

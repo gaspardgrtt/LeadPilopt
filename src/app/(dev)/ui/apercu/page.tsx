@@ -12,7 +12,7 @@ export default function ShellPreviewPage() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
     <div className="flex min-h-dvh">
-      <AppSidebar user={{ name: "Agence Dupont", email: "agence@dupont-immo.fr" }} counts={{ "/prospects": 42 }} />
+      <AppSidebar user={{ name: "Agence Dupont", email: "agence@dupont-immo.fr" }} counts={{ "/priorites": 42 }} />
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileNav />
         <DashboardPreview />

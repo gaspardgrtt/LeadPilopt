@@ -76,6 +76,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
         nbAffairesOuvertes={stats.nbAffairesOuvertes}
         caRecupere={stats.caRecupere}
         weekly={weekly}
+        threshold={threshold}
         startHref={priorities[0] ? `/prospects/${priorities[0].id}` : "/prospects"}
       />
 
@@ -86,7 +87,8 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
               À relancer en priorité
             </h2>
             <p className="mt-1 text-body text-foreground-secondary">
-              Les affaires qui rapportent le plus si vous les relancez aujourd&apos;hui.
+              Les affaires qui rapportent le plus si vous les relancez aujourd&apos;hui. Le score les compare à votre
+              affaire la plus rentable (100).
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -128,7 +130,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
       </section>
 
       {(queue.length > 0 || stats.caRecuperable > 0) && (
-        <section className="mt-12 grid gap-6 lg:grid-cols-[1.55fr_1fr]">
+        <section className="mt-12 grid gap-6 xl:grid-cols-[1.55fr_1fr]">
           {queue.length > 0 && (
             <FadeIn delay={0.45} className="min-w-0">
               <Card className="h-full">
@@ -143,7 +145,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
             </FadeIn>
           )}
           {stats.caRecuperable > 0 && (
-            <FadeIn delay={0.55} className={queue.length > 0 ? "min-w-0" : "min-w-0 lg:col-span-2"}>
+            <FadeIn delay={0.55} className={queue.length > 0 ? "min-w-0" : "min-w-0 xl:col-span-2"}>
               <Card className="h-full">
                 <CardHeader>
                   <CardTitle>Où dort l&apos;argent</CardTitle>

@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { ProspectView } from "@/app/(app)/prospects/[id]/prospect-view";
-import { SAMPLE_FOLLOWUP, SAMPLE_PROSPECTS, sampleProspectRow } from "@/app/(app)/apercu/sample-data";
+import { SAMPLE_PROSPECTS, sampleProspectRow } from "@/app/(app)/apercu/sample-data";
+import { detectFollowupContext, renderFollowup, scenarioTag } from "@/lib/followups/templates";
 import { buildScoreContext, explainScore } from "@/lib/scoring/score";
 
 import { PreviewShell } from "../shell";
@@ -11,13 +12,15 @@ import { PreviewShell } from "../shell";
 export const metadata: Metadata = { title: "Catalogue UI · Aperçu de la fiche" };
 
 // Fiche E5 réelle (ProspectView) avec des données d'exemple, sans session. ?relance=1 affiche une
-// relance déjà rédigée. Développement uniquement.
+// relance déjà préparée. Développement uniquement.
 export default async function ProspectPreviewPage({ searchParams }: { searchParams: Promise<{ relance?: string }> }) {
   if (process.env.NODE_ENV === "production") notFound();
   const { relance } = await searchParams;
   const rows = SAMPLE_PROSPECTS.map((p) => sampleProspectRow(p));
   const prospect = sampleProspectRow(SAMPLE_PROSPECTS[0], "Comité d'achat reporté, attend une dernière remise.");
   const context = buildScoreContext(rows, 8000);
+  const scenario = detectFollowupContext(prospect).scenario;
+  const followup = renderFollowup(prospect, scenario, "direct", { signature: "Paul Durand\nAgence Dupont", nom: null });
 
   return (
     <PreviewShell>
@@ -31,10 +34,10 @@ export default async function ProspectPreviewPage({ searchParams }: { searchPara
                   id: "r1",
                   prospect_id: prospect.id,
                   utilisateur_id: "apercu",
-                  objet: SAMPLE_FOLLOWUP.subject,
-                  corps: SAMPLE_FOLLOWUP.body,
+                  objet: followup.objet,
+                  corps: followup.corps,
                   ton: "direct",
-                  modele_ia: "claude-opus-5-5",
+                  modele_ia: scenarioTag(scenario),
                   copiee_le: null,
                   cree_le: "2026-10-08T08:00:00Z",
                 }

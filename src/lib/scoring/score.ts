@@ -147,7 +147,9 @@ const STAGE_TEXT: Record<DealStage, string> = {
   perdu: "perdue",
 };
 
-const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+// Même rendu que formatEuro (espace insécable classique, lisible aux petites tailles).
+const euroFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const euro = { format: (value: number) => euroFormat.format(value).replace(/\u202f/g, "\u00a0") };
 const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 /** Valeurs de Shapley (3 facteurs) d'un score multiplicatif, relativement à un prospect moyen. */

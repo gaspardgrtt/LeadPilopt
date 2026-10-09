@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/layout/navigation";
 
-// Spéc. UX/UI §10 — ⌘K ouvre la palette ; « G puis D / P / I » navigue entre les écrans.
+// Spéc. UX/UI §10 — ⌘K ouvre la palette ; « G puis D / R / K / A / P / I » navigue entre les écrans.
 // La recherche de prospects s'ajoutera ici avec la liste (E4).
 
 type CommandMenuContextValue = {

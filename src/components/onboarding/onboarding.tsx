@@ -99,7 +99,7 @@ export function ImportWelcome({ onTrySample, loading }: { onTrySample: () => voi
   const steps: Step[] = [
     { key: "import", title: "Importez vos dossiers", text: "Un export CSV de votre CRM ou de votre tableur.", done: false, icon: UploadIcon },
     { key: "score", title: "Comprenez le score", text: "LeadPilot vous dit quels dossiers valent une relance, et pourquoi.", done: false, icon: GaugeIcon },
-    { key: "send", title: "Envoyez votre première relance", text: "Rédigée pour vous, prête à partir depuis Gmail.", done: false, icon: SendIcon },
+    { key: "send", title: "Préparez votre première relance", text: "Personnalisée avec les données du dossier, à ouvrir dans Gmail.", done: false, icon: SendIcon },
   ];
   return (
     <motion.section
@@ -138,7 +138,7 @@ export function ImportWelcome({ onTrySample, loading }: { onTrySample: () => voi
 }
 
 type OnboardingChecklistProps = {
-  /** Au moins une relance envoyée (Gmail ou copie). */
+  /** Au moins une relance copiée ou ouverte dans Gmail. */
   hasSentFollowup: boolean;
   /** Fiche du dossier prioritaire, pour les étapes 2 et 3. */
   priorityHref: string | null;
@@ -165,8 +165,8 @@ export function OnboardingChecklist({ hasSentFollowup, priorityHref }: Onboardin
     },
     {
       key: "send",
-      title: "Envoyez votre première relance",
-      text: "Générez-la, relisez, puis ouvrez-la dans Gmail.",
+      title: "Préparez votre première relance",
+      text: "Choisissez un modèle, relisez, puis ouvrez-la dans Gmail ou copiez-la.",
       href: priorityHref ? `${priorityHref}#relance` : undefined,
       cta: "Préparer ma première relance",
       done: hasSentFollowup,

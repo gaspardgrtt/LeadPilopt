@@ -22,7 +22,7 @@
   --border-strong: #e1e4ec; /* bordures de champs et boutons secondaires */
   --foreground: #0f1222; /* titres, valeurs */
   --foreground-secondary: #525c75; /* descriptions, libellés */
-  --foreground-tertiary: #8d95a8; /* placeholders, aides */
+  --foreground-tertiary: #6b7489; /* placeholders, aides (4,7:1 sur blanc) */
 
   /* Accent */
   --primary: #5d64f4;
@@ -35,11 +35,11 @@
   --primary-foreground: #ffffff;
 
   /* Sémantique : statuts, score, tuiles KPI */
-  --success: #158a4f;
+  --success: #137544;
   --success-soft: #e4f7ed;
-  --warning: #c9500c;
+  --warning: #b0450a;
   --warning-soft: #fef1e3;
-  --danger: #c8402e;
+  --danger: #b23322;
   --danger-soft: #fdeeea;
   --info: #2c58f8;
   --info-soft: #eaf0fe;
@@ -63,13 +63,13 @@
   --sidebar-hover: rgb(255 255 255 / 0.04);
   --sidebar-foreground: #cfd4dc;
   --sidebar-foreground-active: #ffffff;
-  --sidebar-muted: #9aa3b0;
+  --sidebar-muted: #b4bcc8;
   --sidebar-border: rgb(255 255 255 / 0.08);
 
   /* Bandeau « hero » du dashboard */
   --hero: #0e1424;
   --hero-foreground: #ffffff;
-  --hero-muted: #a8b0c4;
+  --hero-muted: #b8bfd1;
 
   /* Alias attendus par les composants shadcn/ui */
   --card: var(--surface);
@@ -193,7 +193,7 @@
   --shadow-overlay: 0 12px 32px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
 
   /* Gabarits */
-  --spacing-sidebar: 224px;
+  --spacing-sidebar: 248px;
   --spacing-row: 52px;
   --container-content: 1200px;
 

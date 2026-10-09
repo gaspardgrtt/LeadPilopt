@@ -23,7 +23,7 @@ npm run dev                  # http://localhost:3000
 | `npm run db:push` | Applique les migrations au projet Supabase lié |
 | `npm run db:types` | Régénère `src/types/database.ts` depuis le projet lié |
 
-En développement uniquement : catalogue des composants sur [`/ui`](http://localhost:3000/ui), aperçus remplis avec des données d'exemple sur [`/apercu/dashboard`](http://localhost:3000/apercu/dashboard) et [`/apercu/prospect`](http://localhost:3000/apercu/prospect) (connexion requise).
+En développement uniquement (404 en production) : catalogue des composants sur [`/ui`](http://localhost:3000/ui), aperçus sans connexion remplis avec des données d'exemple sur [`/ui/apercu`](http://localhost:3000/ui/apercu) (dashboard), `/ui/apercu/prospect`, `/ui/apercu/priorites`, `/ui/apercu/dossiers` et `/ui/apercu/dossiers-a-risque`.
 
 ## Mettre en place Supabase
 
@@ -45,6 +45,14 @@ En développement uniquement : catalogue des composants sur [`/ui`](http://local
 5. L'envoi par défaut de Supabase est limité à 2 emails par heure : indispensable de configurer un SMTP avant d'ouvrir l'application à des utilisateurs.
 6. Renseigner `.env.local` (ou les variables de l'hébergeur) : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`.
 
+## Mise en ligne (Vercel)
+
+- Région des fonctions : Paris (`cdg1`, `vercel.json`), à côté de la base Supabase (eu-west-3).
+- Variables d'environnement (Production, et Preview si besoin) : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` (URL publique exacte, sans `/` final). Aucune clé secrète : la clé `service_role` / `sb_secret_` n'est jamais utilisée par l'application. Les variables `NEXT_PUBLIC_` sont figées au build : après une modification, redéployer.
+- Supabase > Authentication > URL Configuration : Site URL = l'URL publique ; Redirect URLs = `https://<domaine>/**` (garder `http://localhost:3000/**` pour le développement). À faire dans le tableau de bord plutôt qu'avec `config push`, dont le fichier local pointe vers localhost.
+- SMTP personnalisé (Authentication > SMTP Settings) avant d'ouvrir à de vrais utilisateurs : sans lui, 2 emails de connexion par heure pour tout le projet.
+- Isolation des données : chaque compte (une agence) ne voit que ses propres lignes ; Row Level Security sur les 3 tables, aucun droit pour les visiteurs anonymes, vérifié par `npm run test:db`.
+
 ## Import CSV
 
 L'écran **Importer** accepte un CSV (10 Mo, 5 000 lignes max), séparé par virgules ou points-virgules, en UTF-8 ou en encodage Excel français. Colonnes reconnues automatiquement (noms FR/EN, HubSpot, Pipedrive, Salesforce) : `entreprise`*, `contact`, `email`, `téléphone`, `montant`, `date dernier contact`*, `statut`, `notes` (* obligatoires). Voir `public/exemple-prospects.csv`.
@@ -57,15 +65,15 @@ L'écran **Importer** accepte un CSV (10 Mo, 5 000 lignes max), séparé par vir
 
 Le score (0 à 100) compare le CA récupérable d'un prospect à celui de la meilleure affaire ouverte du compte (= 100). Le CA récupérable vaut montant × poids de l'étape × fraîcheur du contact. La fiche prospect l'explique : un verdict en une phrase, les facteurs (montant, étape, silence) classés par influence avec leurs points, et une cascade « prospect moyen du compte → score ». Les points sont des valeurs de Shapley : chaque facteur est comparé au prospect moyen du compte et la somme retombe exactement sur le score. Sur le dashboard, survoler un anneau de score affiche le même résumé.
 
-## Relances IA
+## Relances (modèles, sans IA)
 
-Sur la fiche d'un prospect, « Générer une relance » appelle `POST /api/relances/generer`, qui rédige l'email avec Claude (API Anthropic, modèle `claude-opus-5-5`) et le diffuse en streaming, puis l'enregistre dans `relances`. Trois tons : Direct, Professionnel, Amical (valeurs en base : `direct`, `formel`, `chaleureux`). La signature du compte est ajoutée telle quelle à la fin. Changer de ton ou « Régénérer » crée une nouvelle relance ; les précédentes restent en base.
+Sur la fiche d'un prospect, « Préparer la relance » complète un modèle rédigé à l'avance (`src/lib/followups/templates.ts`), sans aucun appel à une API d'IA ni coût par relance :
 
-- **Ouvrir dans Gmail** : ouvre un nouveau message Gmail pré-rempli (destinataire = email du prospect, objet, corps) dans un nouvel onglet, via l'URL de rédaction de Gmail (`mail.google.com/mail/?view=cm`) : aucune connexion Google, aucun OAuth, aucune API. Le message s'ouvre dans le compte Gmail connecté du navigateur ; il ne reste qu'à cliquer sur « Envoyer ». « Copier le message » reste disponible pour tout autre client mail.
-- Variable requise : `ANTHROPIC_API_KEY` (serveur uniquement).
-- Limite : 20 relances par utilisateur et par heure (`FOLLOWUP_HOURLY_LIMIT`).
-- En cas de refus par les filtres de sécurité du modèle, l'API relance automatiquement sur le modèle de secours recommandé (`fallbacks: "default"`).
-- RGPD : le nom, l'entreprise, l'étape, le montant, la date de dernier contact et les notes du prospect sont envoyés à Anthropic pour la rédaction. À mentionner dans la politique de confidentialité.
+- **Situation détectée** d'après le dossier : plus de 120 jours sans contact → « Dernière relance » ; plus de 60 jours → « Reprise de contact » ; sinon selon l'étape : négociation → « Aide à la décision », proposition → « Suivi de proposition », autres → « Suite à un premier échange ». Le modèle conseillé et ses raisons sont affichés ; l'utilisateur peut en choisir un autre.
+- **Trois tons** : Direct, Professionnel, Amical (valeurs en base : `direct`, `formel`, `chaleureux`), soit 15 variantes.
+- **Personnalisation** avec les seules données réelles : prénom du contact (sinon « Bonjour, »), entreprise, date du dernier échange (sinon la phrase est reformulée sans date), mention de la proposition uniquement aux étapes proposition et négociation. Les notes importées ne sont jamais recopiées dans le message (notes internes). La signature du compte est ajoutée telle quelle.
+- La relance est préparée côté serveur (action `prepareFollowup`, données relues en base) et enregistrée dans `relances` (`modele_ia` = `modele:<scénario>`). Tant qu'elle n'a été ni copiée ni ouverte dans Gmail, changer de modèle ou de ton réécrit le même brouillon. Le texte reste modifiable avant envoi.
+- **Ouvrir dans Gmail** : ouvre un nouveau message Gmail pré-rempli (destinataire = email du prospect, objet, corps) dans un nouvel onglet, via l'URL de rédaction de Gmail (`mail.google.com/mail/?view=cm`) : aucune connexion Google, aucun OAuth, aucune API. LeadPilot n'envoie rien : le message part quand l'utilisateur clique sur « Envoyer » dans Gmail. « Copier le message » reste disponible pour tout autre client mail. Ouvrir ou copier horodate la relance (`copiee_le`) ; l'interface parle alors de relance « copiée ou ouverte », jamais « envoyée ».
 
 Pour essayer l'application sans fichier : se connecter une fois, remplacer l'adresse dans `supabase/demo-data.sql` puis l'exécuter dans le SQL Editor.
 
@@ -77,4 +85,4 @@ Pour essayer l'application sans fichier : se connecter une fois, remplacer l'adr
 | E2 Import et réglages | `/import` |
 | E3 Tableau de bord | `/tableau-de-bord` |
 | E4 Liste des prospects | `/prospects` |
-| E5 Fiche prospect et relance IA | `/prospects/[id]` |
+| E5 Fiche prospect et relance | `/prospects/[id]` |

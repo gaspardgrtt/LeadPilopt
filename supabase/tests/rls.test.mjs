@@ -119,6 +119,52 @@ await db.query("select public.recalculer_tous_les_prospects()");
 ok("recalcul global (cron, propriétaire des tables) recalcule tous les comptes",
   (await db.query("select score from public.prospects where entreprise = 'Calc Proposition'")).rows[0].score === 83);
 
+// --- Relances par modèles (action prepareFollowup) : brouillon réécrit par son propriétaire seulement
+await as(A);
+const brouillon = (await db.query(
+  "insert into public.relances (prospect_id, utilisateur_id, objet, corps, ton, modele_ia) values ($1, $2, 'o', 'c', 'direct', 'modele:suivi_echange') returning id",
+  [pidA, A]
+)).rows[0].id;
+await db.query("update public.relances set objet = 'Prochaines étapes', corps = 'Bonjour', ton = 'formel', modele_ia = 'modele:decision' where id = $1", [brouillon]);
+ok("A réécrit son brouillon (modèle et ton)", (await db.query("select modele_ia, ton from public.relances where id = $1", [brouillon])).rows[0].modele_ia === "modele:decision");
+await as(B);
+const reecriture = await db.query("update public.relances set corps = 'piraté' where id = $1", [brouillon]);
+ok("B ne peut pas réécrire le brouillon de A", reecriture.affectedRows === 0);
+await as(A);
+await db.query("delete from public.relances where id = $1", [brouillon]);
+
+// --- Séparation stricte entre comptes (agences) : cas complémentaires
+await as(A);
+const relanceA = (await db.query(
+  "insert into public.relances (prospect_id, utilisateur_id, objet, corps, ton) values ($1, $2, 'o', 'c', 'direct') returning id",
+  [pidA, A]
+)).rows[0].id;
+await as(B);
+const suppressionRelance = await db.query("delete from public.relances where id = $1", [relanceA]);
+ok("B ne peut pas supprimer une relance de A", suppressionRelance.affectedRows === 0);
+const pidB = (await db.query("insert into public.prospects (utilisateur_id, entreprise) values ($1, 'Transfert SA') returning id", [B])).rows[0].id;
+await expectError("B transfère son prospect vers le compte de A", "update public.prospects set utilisateur_id = $1 where id = $2", [A, pidB]);
+await db.query("delete from public.prospects where id = $1", [pidB]);
+await as(A);
+await db.query("delete from public.relances where id = $1", [relanceA]);
+
+// --- Kanban « Mes dossiers » : changement d'étape puis recalcul (action updateProspectStage)
+await as(A);
+await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact)
+  values ($1, 'Kanban SAS', 10000, 'decouverte', current_date - 30)`, [A]);
+await db.query("select public.recalculer_prospects()");
+const caAvant = Number((await db.query("select ca_recuperable_eur from public.prospects where entreprise = 'Kanban SAS'")).rows[0].ca_recuperable_eur);
+await db.query("update public.prospects set etape = 'negociation' where entreprise = 'Kanban SAS' and utilisateur_id = $1", [A]);
+await db.query("select public.recalculer_prospects()");
+const caApres = Number((await db.query("select ca_recuperable_eur from public.prospects where entreprise = 'Kanban SAS'")).rows[0].ca_recuperable_eur);
+ok("A déplace son dossier en négociation : argent récupérable recalculé (×6)", Math.abs(caApres - caAvant * 6) < 0.05);
+await as(B);
+const deplacement = await db.query("update public.prospects set etape = 'perdu' where entreprise = 'Kanban SAS'");
+ok("B ne peut pas déplacer un dossier de A", deplacement.affectedRows === 0);
+await as(A);
+await db.query("delete from public.prospects where entreprise = 'Kanban SAS' and utilisateur_id = $1", [A]);
+await db.query("select public.recalculer_prospects()");
+
 // --- Taux de commission (migration taux_commission)
 await as(A);
 await db.query("update public.utilisateurs set taux_commission = 4.5 where id = $1", [A]);

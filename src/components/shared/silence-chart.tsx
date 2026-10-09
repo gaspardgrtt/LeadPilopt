@@ -2,7 +2,11 @@
 
 import { motion } from "framer-motion";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatEuro, formatInteger } from "@/lib/format";
 
 // Barres horizontales, une seule série (CA récupérable par ancienneté) : une teinte, pas de
@@ -14,10 +18,11 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
   const max = Math.max(...buckets.map((bucket) => bucket.total), 1);
 
   return (
-    <figure>
+    <figure className="relative">
       <div className="flex flex-col gap-3" aria-hidden>
         {buckets.map((bucket, index) => {
-          const width = bucket.total > 0 ? Math.max((bucket.total / max) * 100, 1.5) : 0;
+          const width =
+            bucket.total > 0 ? Math.max((bucket.total / max) * 100, 1.5) : 0;
           return (
             <Tooltip key={bucket.label}>
               <TooltipTrigger asChild>
@@ -31,7 +36,11 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
                         className="absolute inset-y-0 left-0 rounded-r-[4px] bg-gradient-to-r from-primary/80 to-primary transition-[filter] group-hover:brightness-110"
                         initial={{ width: 0 }}
                         animate={{ width: `${width}%` }}
-                        transition={{ duration: 0.7, delay: 0.1 + index * 0.06, ease: [0.2, 0, 0, 1] }}
+                        transition={{
+                          duration: 0.7,
+                          delay: 0.1 + index * 0.06,
+                          ease: [0.2, 0, 0, 1],
+                        }}
                       />
                     </span>
                     <span className="w-24 shrink-0 text-right text-dense font-semibold text-foreground tabular-nums">
@@ -41,32 +50,38 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {bucket.label} sans contact · {formatInteger(bucket.count)} prospect{bucket.count > 1 ? "s" : ""} ·{" "}
+                {bucket.label} sans contact · {formatInteger(bucket.count)}{" "}
+                prospect{bucket.count > 1 ? "s" : ""} ·{" "}
                 {formatEuro(bucket.total)}
               </TooltipContent>
             </Tooltip>
           );
         })}
       </div>
-      <table className="sr-only">
-        <caption>Argent récupérable par ancienneté du dernier contact</caption>
-        <thead>
-          <tr>
-            <th scope="col">Ancienneté</th>
-            <th scope="col">Prospects</th>
-            <th scope="col">Argent récupérable</th>
-          </tr>
-        </thead>
-        <tbody>
-          {buckets.map((bucket) => (
-            <tr key={bucket.label}>
-              <th scope="row">{bucket.label}</th>
-              <td>{bucket.count}</td>
-              <td>{formatEuro(bucket.total)}</td>
+      {/* sr-only sur un conteneur : une table ignore la largeur de 1 px et déborderait. */}
+      <div className="sr-only">
+        <table>
+          <caption>
+            Argent récupérable par ancienneté du dernier contact
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Ancienneté</th>
+              <th scope="col">Prospects</th>
+              <th scope="col">Argent récupérable</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {buckets.map((bucket) => (
+              <tr key={bucket.label}>
+                <th scope="row">{bucket.label}</th>
+                <td>{bucket.count}</td>
+                <td>{formatEuro(bucket.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </figure>
   );
 }

@@ -6,7 +6,7 @@ import { STATUS_LABELS, type ProspectStatus } from "@/lib/prospects";
 // Badges pastel : fond doux, texte saturé, point de couleur et liseré intérieur discret, rayon 6.
 const STATUS_STYLES: Record<ProspectStatus, { badge: string; dot: string }> = {
   a_traiter: { badge: "bg-warning-soft text-warning ring-warning/20", dot: "bg-warning" },
-  relance: { badge: "bg-primary-soft text-primary ring-primary/20", dot: "bg-primary" },
+  relance: { badge: "bg-primary-soft text-primary-hover ring-primary/20", dot: "bg-primary" },
   gagne: { badge: "bg-success-soft text-success ring-success/20", dot: "bg-success" },
   perdu: { badge: "bg-danger-soft text-danger ring-danger/20", dot: "bg-danger" },
   ignore: { badge: "bg-surface-subtle text-foreground-tertiary ring-border-strong", dot: "bg-foreground-tertiary/60" },

@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Logo } from "@/components/brand/logo";
-import { AiFollowupBlock, type FollowupState } from "@/components/shared/ai-followup-block";
+import { FollowupBlock, type FollowupState } from "@/components/shared/followup-block";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Field } from "@/components/shared/field";
 import { KpiCard } from "@/components/shared/kpi-card";
@@ -321,7 +321,7 @@ export function Catalogue() {
         </div>
       </Section>
 
-      <Section title="Bloc relance IA">
+      <Section title="Bloc relance (modèles)">
         <ToggleGroup
           type="single"
           size="sm"
@@ -329,12 +329,12 @@ export function Catalogue() {
           onValueChange={(value) => value && setFollowupState(value as FollowupState)}
           aria-label="État du bloc"
         >
-          <ToggleGroupItem value="generating">Génération</ToggleGroupItem>
+          <ToggleGroupItem value="generating">Préparation</ToggleGroupItem>
           <ToggleGroupItem value="ready">Prêt</ToggleGroupItem>
           <ToggleGroupItem value="edited">Modifié</ToggleGroupItem>
           <ToggleGroupItem value="error">Erreur</ToggleGroupItem>
         </ToggleGroup>
-        <AiFollowupBlock
+        <FollowupBlock
           className="max-w-xl"
           state={followupState}
           subject={followupState === "generating" ? "" : subject}
@@ -371,7 +371,7 @@ export function Catalogue() {
         <ScoreExplanationCard explanation={explainScore(SCORE_SAMPLE[5], SCORE_CONTEXT)} />
       </Section>
 
-      <Section title="Relance IA de la fiche (sans relance)">
+      <Section title="Relance de la fiche (sans relance)">
         <div className="max-w-xl">
           <FollowupPanel
             prospectId="00000000-0000-4000-8000-000000000000"
@@ -379,6 +379,7 @@ export function Catalogue() {
             relance={null}
             defaultTone="direct"
             contactEmail="jonas@nordwind.com"
+            context={{ recommended: "decision", reasons: ["Étape : Négociation", "27 jours sans contact"] }}
           />
         </div>
       </Section>

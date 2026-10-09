@@ -7,7 +7,7 @@ describe("buildGmailComposeUrl", () => {
     const { url, bodyIncluded } = buildGmailComposeUrl({
       to: "jonas@nordwind.com",
       subject: "Suite à notre échange concernant votre projet",
-      body: "Bonjour Jonas,\n\nOù en êtes-vous ?\n\nCordialement\nGaspard",
+      body: "Bonjour Jonas,\n\nOù en êtes-vous ?\n\nCordialement\nPaul",
     });
     expect(bodyIncluded).toBe(true);
     const parsed = new URL(url);
@@ -16,7 +16,7 @@ describe("buildGmailComposeUrl", () => {
     expect(parsed.searchParams.get("fs")).toBe("1");
     expect(parsed.searchParams.get("to")).toBe("jonas@nordwind.com");
     expect(parsed.searchParams.get("su")).toBe("Suite à notre échange concernant votre projet");
-    expect(parsed.searchParams.get("body")).toBe("Bonjour Jonas,\n\nOù en êtes-vous ?\n\nCordialement\nGaspard");
+    expect(parsed.searchParams.get("body")).toBe("Bonjour Jonas,\n\nOù en êtes-vous ?\n\nCordialement\nPaul");
   });
 
   it("encode les caractères spéciaux sans les confondre avec la syntaxe de l'URL", () => {

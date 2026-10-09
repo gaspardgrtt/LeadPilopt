@@ -2,6 +2,7 @@ import { AppSidebar, MobileNav } from "@/components/layout/app-sidebar";
 import { CommandMenuProvider } from "@/components/layout/command-menu";
 import { requireUser } from "@/lib/auth/session";
 import { getProfil, getProspectCounts } from "@/lib/data/prospects";
+import { displayName } from "@/lib/user/display-name";
 
 // Toutes les pages connectées dépendent de la session : jamais de pré-rendu statique.
 export const dynamic = "force-dynamic";
@@ -11,14 +12,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   const [profil, counts] = await Promise.all([getProfil(), getProspectCounts()]);
   const email = profil?.email ?? user.email;
-  const name = profil?.nom?.trim() || email.split("@")[0] || "Mon compte";
+  const name = displayName(profil?.nom, email);
+  // Seul compteur affiché : les dossiers oubliés à traiter, c'est-à-dire la liste « Mes priorités ».
+  const sidebarCounts = counts.oublies ? { "/priorites": counts.oublies } : undefined;
 
   return (
     <CommandMenuProvider>
       <div className="flex min-h-dvh bg-background">
-        <AppSidebar user={{ name, email }} counts={counts.oublies ? { "/prospects": counts.oublies } : undefined} />
+        <AppSidebar user={{ name: name.full, email, needsName: name.isFallback }} counts={sidebarCounts} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <MobileNav />
+          <MobileNav user={{ name: name.full, email, needsName: name.isFallback }} counts={sidebarCounts} />
           {children}
         </div>
       </div>

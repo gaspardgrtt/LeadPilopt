@@ -13,7 +13,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Ne laissez plus un prospect oublié vous coûter une vente.
           </h1>
           <p className="mt-3 text-[16px] leading-6 text-foreground-secondary">
-            L&apos;assistant IA qui repère les affaires qui dorment dans votre CRM et rédige la relance à envoyer.
+            L&apos;assistant commercial qui repère les affaires qui dorment dans votre CRM et prépare la relance à envoyer.
           </p>
           <div className="mt-8">{children}</div>
         </div>

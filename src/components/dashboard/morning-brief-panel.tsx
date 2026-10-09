@@ -4,46 +4,17 @@ import Link from "next/link";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { ArrowRightIcon, PencilIcon, PlusIcon, SparklesIcon, SunIcon, XIcon } from "lucide-react";
 
-import { cn } from "@/lib/utils";
 import type { ProspectRow } from "@/components/shared/prospect-table";
 import type { MorningBrief } from "@/lib/brief/brief";
 import { formatEuro, formatInteger } from "@/lib/format";
-import type { ScoreFactor } from "@/lib/scoring/score";
+
+import { WhyPriority } from "@/components/score/why-priority";
 
 import { CommissionEditor } from "./commission-editor";
 
 // Brief du matin en fonctionnalité secondaire : un bouton ouvre un panneau latéral qui résume la
 // journée (argent récupérable, commission, action du jour, progression, « Pourquoi prioritaire ? »).
 // Les chiffres viennent de buildMorningBrief (aucune IA).
-
-const signed = (points: number) => (points > 0 ? `+${points}` : points < 0 ? `−${Math.abs(points)}` : "0");
-
-function WhyPriority({ factors }: { factors: ScoreFactor[] }) {
-  const maxAbs = Math.max(...factors.map((factor) => Math.abs(factor.points)), 1);
-  return (
-    <ul className="mt-2 flex flex-col gap-1.5">
-      {factors.map((factor) => (
-        <li key={factor.key} className="grid grid-cols-[40px_1fr_48px] items-center gap-2">
-          <span
-            className={cn(
-              "text-right text-dense font-bold tabular-nums",
-              factor.points > 0 ? "text-success" : factor.points < 0 ? "text-danger" : "text-foreground-tertiary"
-            )}
-          >
-            {signed(factor.points)}
-          </span>
-          <span className="truncate text-dense text-foreground-secondary">{factor.shortLabel}</span>
-          <span className="h-1.5 overflow-hidden rounded-full bg-surface-subtle">
-            <span
-              className={cn("block h-full rounded-full", factor.points >= 0 ? "bg-success" : "bg-danger")}
-              style={{ width: `${(Math.abs(factor.points) / maxAbs) * 100}%` }}
-            />
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 type MorningBriefPanelProps = {
   firstName: string;
@@ -158,7 +129,7 @@ export function MorningBriefPanel({
               ) : (
                 <p className="mt-1.5 text-body font-medium text-foreground">
                   {brief.state === "all_done"
-                    ? "Bravo, toutes les relances du jour sont faites."
+                    ? "Bravo, toutes les relances du jour sont préparées."
                     : "Tout est à jour : aucune opportunité à relancer aujourd'hui."}
                 </p>
               )}
@@ -201,7 +172,7 @@ export function MorningBriefPanel({
                             </span>
                           </Link>
                         </DialogPrimitive.Close>
-                        {explanation && <WhyPriority factors={explanation.factors} />}
+                        {explanation && <WhyPriority factors={explanation.factors} className="mt-2" />}
                       </li>
                     );
                   })}

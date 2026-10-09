@@ -19,7 +19,7 @@ export type BriefInput = {
     etape: DealStage | null;
     silenceDays: number | null;
   } | null;
-  /** Relances envoyées aujourd'hui (Gmail ou copie) et total de la journée. */
+  /** Relances copiées ou ouvertes dans Gmail aujourd'hui, et total de la journée. */
   progress: { done: number; total: number };
 };
 
@@ -52,8 +52,8 @@ export function buildMorningBrief(input: BriefInput): MorningBrief {
           ...input.progress,
           label:
             input.progress.done >= input.progress.total
-              ? "Toutes les relances du jour sont faites"
-              : `${formatInteger(input.progress.done)} / ${formatInteger(input.progress.total)} relance${input.progress.total > 1 ? "s" : ""} faite${input.progress.done > 1 ? "s" : ""} aujourd'hui`,
+              ? "Toutes les relances du jour sont préparées"
+              : `${formatInteger(input.progress.done)} / ${formatInteger(input.progress.total)} relance${input.progress.total > 1 ? "s" : ""} préparée${input.progress.done > 1 ? "s" : ""} aujourd'hui`,
         }
       : null;
 
@@ -73,7 +73,7 @@ export function buildMorningBrief(input: BriefInput): MorningBrief {
     priority.silenceDays !== null
       ? `sans nouvelles depuis ${priority.silenceDays} jour${priority.silenceDays > 1 ? "s" : ""}`
       : null,
-    `${formatEuro(priority.recoverable).replace(/\u202f/g, "\u00a0")} en jeu`,
+    `${formatEuro(priority.recoverable)} en jeu`,
   ].filter(Boolean);
 
   return {

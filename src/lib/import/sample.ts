@@ -2,7 +2,7 @@
 // dont les dates sont calculées par rapport à aujourd'hui pour que le brief reste parlant quel que
 // soit le jour. Il passe par le même assistant d'import qu'un vrai fichier.
 
-type SampleRow = {
+export type SampleRow = {
   entreprise: string;
   contact: string;
   email: string;
@@ -12,7 +12,7 @@ type SampleRow = {
   notes: string;
 };
 
-const ROWS: SampleRow[] = [
+export const SAMPLE_ROWS: SampleRow[] = [
   { entreprise: "Nordwind GmbH", contact: "Jonas Weber", email: "j.weber@nordwind.de", montant: 41700, joursSansContact: 26, statut: "Négociation", notes: "Comité d'achat reporté, attend une dernière remise" },
   { entreprise: "Atelier Lumen", contact: "Inès Morel", email: "ines@atelier-lumen.fr", montant: 31900, joursSansContact: 41, statut: "Proposition envoyée", notes: "A trouvé la proposition claire, doit en parler à son associé" },
   { entreprise: "Kairos Conseil", contact: "Hugo Lefèvre", email: "hugo@kairos-conseil.fr", montant: 20800, joursSansContact: 63, statut: "Négociation", notes: "Bloqué sur le calendrier de démarrage" },
@@ -23,7 +23,7 @@ const ROWS: SampleRow[] = [
   { entreprise: "Opaline Studio", contact: "Léa Garnier", email: "lea@opaline.studio", montant: 6000, joursSansContact: 75, statut: "Qualifié", notes: "" },
   { entreprise: "Groupe Arcadie", contact: "Thomas Girard", email: "t.girard@arcadie.fr", montant: 27500, joursSansContact: 48, statut: "Proposition envoyée", notes: "Demande une référence client du même secteur" },
   { entreprise: "Verdure & Co", contact: "Camille Faure", email: "camille@verdure.co", montant: 9400, joursSansContact: 140, statut: "Découverte", notes: "" },
-  { entreprise: "Halo Santé", contact: "Nadia Chevalier", email: "n.chevalier@halo-sante.fr", montant: 23600, joursSansContact: 12, statut: "Négociation", notes: "Échange en cours, pas encore oublié" },
+  { entreprise: "Halo Santé", contact: "Nadia Chevalier", email: "n.chevalier@halo-sante.fr", montant: 23600, joursSansContact: 17, statut: "Négociation", notes: "Échange en cours, pas encore oublié" },
   { entreprise: "Fjord Design", contact: "Antoine Mercier", email: "antoine@fjord.design", montant: 14200, joursSansContact: 5, statut: "Proposition envoyée", notes: "Proposition envoyée cette semaine" },
   { entreprise: "Solenne Bio", contact: "Anaïs Roux", email: "anais@solenne-bio.fr", montant: 12000, joursSansContact: 54, statut: "Gagné", notes: "Contrat signé" },
   { entreprise: "Cobalt Énergie", contact: "Marc Dubois", email: "marc.dubois@cobalt-energie.fr", montant: 38000, joursSansContact: 70, statut: "Perdu", notes: "A choisi un concurrent" },
@@ -42,7 +42,7 @@ export const SAMPLE_FILE_NAME = "exemple-leadpilot.csv";
 /** Contenu CSV du jeu d'exemple, dates relatives à `today`. */
 export function buildSampleCsv(today: Date = new Date()): string {
   const header = "entreprise,contact,email,téléphone,montant,date dernier contact,statut,notes";
-  const lines = ROWS.map((row) => {
+  const lines = SAMPLE_ROWS.map((row) => {
     const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() - row.joursSansContact);
     return [row.entreprise, row.contact, row.email, "", String(row.montant), frenchDate(date), row.statut, row.notes]
       .map(quote)

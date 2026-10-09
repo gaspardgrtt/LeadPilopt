@@ -3,17 +3,18 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { SparklesIcon } from "lucide-react";
+import { CompassIcon, PenLineIcon } from "lucide-react";
 
-import { AiFollowupBlock, type FollowupState } from "@/components/shared/ai-followup-block";
+import { FollowupBlock, type FollowupState } from "@/components/shared/followup-block";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { MovingBorderButton } from "@/components/shared/moving-border-button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { parseFollowupText, type FollowupStreamEvent } from "@/lib/ai/followup-format";
 import { buildGmailComposeUrl } from "@/lib/gmail";
 import { FOLLOWUP_TONES, STATUS_LABELS, TONE_LABELS, type FollowupTone, type ProspectStatus } from "@/lib/prospects";
+import { FOLLOWUP_SCENARIOS, SCENARIO_HINTS, SCENARIO_LABELS, type FollowupScenario } from "@/lib/followups/templates";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-import { markFollowupCopied, saveFollowupDraft, updateProspectStatus } from "../../actions";
+import { markFollowupCopied, prepareFollowup, saveFollowupDraft, updateProspectStatus } from "../../actions";
 
 /** Badge de statut de la fiche, avec mise à jour optimiste et annulation. */
 export function ProspectStatusControl({ prospectId, status }: { prospectId: string; status: ProspectStatus }) {
@@ -36,115 +37,72 @@ export function ProspectStatusControl({ prospectId, status }: { prospectId: stri
   return <StatusMenu value={value} onChange={(next) => void change(next)} />;
 }
 
-type FollowupRelance = { id: string; objet: string; corps: string; ton: FollowupTone };
+type FollowupRelance = { id: string; objet: string; corps: string; ton: FollowupTone; scenario: FollowupScenario | null };
 
 type FollowupPanelProps = {
   prospectId: string;
   nextProspectId: string | null;
   relance: (FollowupRelance & { copiee: boolean }) | null;
-  /** Ton par défaut du compte, utilisé pour la première génération. */
+  /** Ton par défaut du compte, utilisé pour la première relance. */
   defaultTone: FollowupTone;
   /** Destinataire du brouillon Gmail. */
   contactEmail: string | null;
+  /** Situation détectée d'après le dossier : modèle conseillé et raisons affichées. */
+  context: { recommended: FollowupScenario; reasons: string[] };
 };
 
-/** Lit le flux NDJSON de /api/relances/generer et rend chaque événement. */
-async function* readFollowupStream(response: Response): AsyncGenerator<FollowupStreamEvent> {
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let newline = buffer.indexOf("\n");
-    while (newline !== -1) {
-      const line = buffer.slice(0, newline).trim();
-      buffer = buffer.slice(newline + 1);
-      if (line) yield JSON.parse(line) as FollowupStreamEvent;
-      newline = buffer.indexOf("\n");
-    }
-  }
-  if (buffer.trim()) yield JSON.parse(buffer) as FollowupStreamEvent;
-}
-
 /**
- * Relance de la fiche : génération par Claude en streaming (ton au choix, régénération),
- * copie dans le presse-papiers (horodatée), enregistrement des modifications à la sortie du
- * champ, « Marquer comme relancé » puis passage au suivant.
+ * Relance de la fiche, à partir de modèles (aucune IA, aucun coût) : choix du modèle et du ton,
+ * texte modifiable (enregistré à la sortie du champ), ouverture d'un brouillon Gmail ou copie
+ * (horodatées), puis « Marquer comme relancé » et passage au dossier suivant.
  */
-export function FollowupPanel({ prospectId, nextProspectId, relance: initialRelance, defaultTone, contactEmail }: FollowupPanelProps) {
+export function FollowupPanel({ prospectId, nextProspectId, relance: initialRelance, defaultTone, contactEmail, context }: FollowupPanelProps) {
   const router = useRouter();
   const [relance, setRelance] = React.useState<FollowupRelance | null>(initialRelance);
   const [subject, setSubject] = React.useState(initialRelance?.objet ?? "");
   const [body, setBody] = React.useState(initialRelance?.corps ?? "");
   const [tone, setTone] = React.useState<FollowupTone>(initialRelance?.ton ?? defaultTone);
+  const [scenario, setScenario] = React.useState<FollowupScenario>(initialRelance?.scenario ?? context.recommended);
   const [state, setState] = React.useState<FollowupState>("ready");
-  const [generationError, setGenerationError] = React.useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
   const saved = React.useRef({ subject: initialRelance?.objet ?? "", body: initialRelance?.corps ?? "" });
-  const abortRef = React.useRef<AbortController | null>(null);
 
-  // Arrête une génération en cours si l'utilisateur quitte la fiche.
-  React.useEffect(() => () => abortRef.current?.abort(), []);
-
-  async function generate(nextTone: FollowupTone) {
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    const previous = { relance, subject, body };
+  async function prepare(nextScenario: FollowupScenario, nextTone: FollowupTone) {
+    const previous = { subject, body, edited: state === "edited", scenario, tone };
+    setScenario(nextScenario);
     setTone(nextTone);
-    setGenerationError(null);
+    setError(null);
     setState("generating");
-    setSubject("");
-    setBody("");
-
-    const restore = (message: string) => {
-      setRelance(previous.relance);
-      setSubject(previous.subject);
-      setBody(previous.body);
-      setState(previous.relance ? "ready" : "error");
-      setGenerationError(message);
-      toast.error(message);
-    };
-
-    try {
-      const response = await fetch("/api/relances/generer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prospectId, ton: nextTone }),
-        signal: controller.signal,
+    const result = await prepareFollowup(prospectId, nextScenario, nextTone);
+    if (!result.ok) {
+      setScenario(previous.scenario);
+      setTone(previous.tone);
+      setState(relance ? (previous.edited ? "edited" : "ready") : "error");
+      setError(result.message);
+      toast.error(result.message);
+      return;
+    }
+    setRelance(result.relance);
+    setSubject(result.relance.objet);
+    setBody(result.relance.corps);
+    saved.current = { subject: result.relance.objet, body: result.relance.corps };
+    setState("ready");
+    if (previous.edited) {
+      // Le texte modifié a été remplacé par le modèle : on laisse la possibilité de le récupérer.
+      toast.success("Modèle appliqué", {
+        description: "Votre texte modifié a été remplacé.",
+        action: {
+          label: "Récupérer mon texte",
+          onClick: () => {
+            setSubject(previous.subject);
+            setBody(previous.body);
+            setState("edited");
+            void saveFollowupDraft(result.relance.id, previous.subject, previous.body).then((saveResult) => {
+              if (saveResult.ok) saved.current = { subject: previous.subject, body: previous.body };
+            });
+          },
+        },
       });
-      if (!response.ok || !response.body) {
-        const payload = await response.json().catch(() => null);
-        restore(payload?.message ?? "La rédaction a échoué. Réessayez.");
-        return;
-      }
-
-      let text = "";
-      for await (const event of readFollowupStream(response)) {
-        if (event.type === "delta") {
-          text += event.text;
-          const parsed = parseFollowupText(text, "");
-          setSubject(parsed.objet);
-          setBody(parsed.corps);
-        } else if (event.type === "done") {
-          setRelance(event.relance);
-          setSubject(event.relance.objet);
-          setBody(event.relance.corps);
-          saved.current = { subject: event.relance.objet, body: event.relance.corps };
-          setState("ready");
-          router.refresh();
-          return;
-        } else {
-          restore(event.message);
-          return;
-        }
-      }
-      restore("La rédaction a été interrompue. Réessayez.");
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      console.error(error);
-      restore("La connexion a été interrompue pendant la rédaction. Réessayez.");
     }
   }
 
@@ -182,6 +140,7 @@ export function FollowupPanel({ prospectId, nextProspectId, relance: initialRela
       return;
     }
     toast.success("Relance copiée", {
+      description: "Collez-la dans votre messagerie. Une fois envoyée, marquez le dossier comme relancé.",
       action: { label: "Marquer comme relancé", onClick: () => void markFollowedUp() },
     });
     const [copied] = await Promise.all([markFollowupCopied(relance.id), persistDraft()]);
@@ -194,8 +153,11 @@ export function FollowupPanel({ prospectId, nextProspectId, relance: initialRela
       // Message trop long pour l'URL : il est copié pour être collé dans le brouillon.
       await navigator.clipboard.writeText(body).catch(() => undefined);
     }
+    // Gmail est seulement ouvert : rien n'est envoyé tant que l'utilisateur ne l'a pas fait.
     toast.success(bodyIncluded ? "Brouillon ouvert dans Gmail" : "Brouillon ouvert : collez le message copié", {
-      description: contactEmail ? "Relisez puis envoyez depuis Gmail." : "Ce prospect n'a pas d'email : ajoutez le destinataire dans Gmail.",
+      description: contactEmail
+        ? "Il n'est pas encore envoyé : relisez-le puis envoyez-le depuis Gmail."
+        : "Ce prospect n'a pas d'email : ajoutez le destinataire dans Gmail avant d'envoyer.",
       action: { label: "Marquer comme relancé", onClick: () => void markFollowedUp() },
     });
     const [used] = await Promise.all([markFollowupCopied(relance.id), persistDraft()]);
@@ -206,52 +168,87 @@ export function FollowupPanel({ prospectId, nextProspectId, relance: initialRela
 
   if (!relance && state !== "generating") {
     return (
-      <section className="relative isolate flex flex-col items-center justify-center overflow-hidden rounded-xl border border-primary/15 bg-surface-tinted/80 px-6 py-12 text-center">
+      <section className="relative isolate overflow-hidden rounded-xl border border-primary/15 bg-surface-tinted/80 px-5 py-8 sm:px-8">
         <span
           aria-hidden
-          className="pointer-events-none absolute -top-16 left-1/2 -z-10 h-40 w-2/3 -translate-x-1/2 rounded-full bg-accent-violet/15 blur-3xl"
+          className="pointer-events-none absolute -top-16 left-1/2 -z-10 h-40 w-2/3 -translate-x-1/2 rounded-full bg-accent-violet/10 blur-3xl"
         />
-        <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent-violet shadow-[0_8px_24px_-8px_var(--accent-violet)]">
-          <SparklesIcon className="size-5 text-white" strokeWidth={2} aria-hidden />
-        </span>
-        <h3 className="mt-3 text-[15px] leading-6 font-semibold text-foreground">Aucune relance pour ce prospect</h3>
-        <p className="mt-1 max-w-sm text-body text-foreground-secondary">
-          Claude rédige une relance à partir des notes, de l&apos;étape et de l&apos;ancienneté du dernier échange.
-        </p>
-        <ToggleGroup
-          type="single"
-          value={tone}
-          onValueChange={(value) => value && setTone(value as FollowupTone)}
-          aria-label="Ton de la relance"
-          className="mt-5"
-        >
-          {FOLLOWUP_TONES.map((value) => (
-            <ToggleGroupItem key={value} value={value}>
-              {TONE_LABELS[value]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-        {generationError && (
-          <p role="alert" className="mt-4 max-w-sm text-dense text-danger">
-            {generationError}
+        <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+          <span className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent-violet shadow-[0_8px_24px_-8px_var(--accent-violet)]">
+            <PenLineIcon className="size-5 text-white" strokeWidth={2} aria-hidden />
+          </span>
+          <h3 className="mt-3 text-[15px] leading-6 font-semibold text-foreground">Préparer la relance</h3>
+          <p className="mt-1 text-body text-foreground-secondary">
+            Un modèle rédigé à l&apos;avance, complété avec les données du dossier (prénom, entreprise, date du dernier
+            échange). Vous pourrez le modifier avant de l&apos;ouvrir dans Gmail.
           </p>
-        )}
-        <MovingBorderButton className="mt-6" onClick={() => void generate(tone)}>
-          <SparklesIcon />
-          Générer une relance IA
-        </MovingBorderButton>
+
+          <div className="mt-5 w-full rounded-lg border bg-surface p-4 text-left">
+            <p className="flex items-center gap-2 text-dense font-semibold text-foreground">
+              <CompassIcon className="size-4 text-primary" aria-hidden />
+              Situation détectée
+            </p>
+            <p className="mt-1 text-dense text-foreground-secondary">{context.reasons.join(" · ")}</p>
+            <p className="mt-2 text-dense text-foreground">
+              Modèle conseillé : <span className="font-semibold">{SCENARIO_LABELS[context.recommended]}</span>
+            </p>
+          </div>
+
+          <div className="mt-4 grid w-full gap-3 text-left sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <p className="mb-1.5 text-dense font-medium text-foreground">Modèle</p>
+              <Select value={scenario} onValueChange={(value) => setScenario(value as FollowupScenario)}>
+                <SelectTrigger className="w-full" aria-label="Modèle de relance">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FOLLOWUP_SCENARIOS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {SCENARIO_LABELS[value]}
+                      {value === context.recommended && <span className="text-caption text-success"> · conseillé</span>}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="mb-1.5 text-dense font-medium text-foreground">Ton</p>
+              <ToggleGroup type="single" value={tone} onValueChange={(value) => value && setTone(value as FollowupTone)} aria-label="Ton de la relance">
+                {FOLLOWUP_TONES.map((value) => (
+                  <ToggleGroupItem key={value} value={value}>
+                    {TONE_LABELS[value]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+          </div>
+          <p className="mt-2 w-full text-left text-caption text-foreground-tertiary">{SCENARIO_HINTS[scenario]}</p>
+
+          {error && (
+            <p role="alert" className="mt-4 text-dense text-danger">
+              {error}
+            </p>
+          )}
+          <MovingBorderButton className="mt-6" onClick={() => void prepare(scenario, tone)}>
+            <PenLineIcon />
+            Préparer la relance
+          </MovingBorderButton>
+        </div>
       </section>
     );
   }
 
   return (
-    <AiFollowupBlock
+    <FollowupBlock
       state={state}
       subject={subject}
       body={body}
       tone={tone}
-      onToneChange={(next) => void generate(next)}
-      onRegenerate={() => void generate(tone)}
+      scenario={scenario}
+      recommendedScenario={context.recommended}
+      onToneChange={(next) => void prepare(scenario, next)}
+      onScenarioChange={(next) => void prepare(next, tone)}
+      onRegenerate={() => void prepare(scenario, tone)}
       onSubjectChange={(value) => {
         setSubject(value);
         setState("edited");

@@ -1,35 +1,36 @@
 "use client";
 
-import { CheckIcon, FileTextIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, FileTextIcon, PenLineIcon, RotateCcwIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { FOLLOWUP_TONES, TONE_LABELS, type FollowupTone } from "@/lib/prospects";
+import { FOLLOWUP_SCENARIOS, SCENARIO_LABELS, type FollowupScenario } from "@/lib/followups/templates";
 import { Button } from "@/components/ui/button";
 import { GmailIcon } from "@/components/brand/gmail-icon";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Bloc « Relance générée par l'IA » de la maquette : panneau teinté, icône étincelle violette,
-// message dans un encart blanc, actions « Copier le message » et « Marquer comme relancé ».
-// Composant contrôlé et sans logique : génération, copie et sauvegarde sont fournies par l'appelant.
+// Bloc relance de la fiche : panneau teinté, message dans un encart blanc modifiable, choix du
+// modèle et du ton, actions « Ouvrir dans Gmail », « Copier le message » et « Marquer comme
+// relancé ». Composant contrôlé et sans logique : préparation, copie et sauvegarde sont fournies
+// par l'appelant.
 export type FollowupState = "generating" | "ready" | "edited" | "error";
 
-type AiFollowupBlockProps = {
+type FollowupBlockProps = {
   state: FollowupState;
   subject: string;
   body: string;
   tone: FollowupTone;
+  scenario?: FollowupScenario;
+  /** Modèle conseillé d'après la situation du dossier (signalé dans la liste). */
+  recommendedScenario?: FollowupScenario;
   onSubjectChange?: (value: string) => void;
   onBodyChange?: (value: string) => void;
   onToneChange?: (tone: FollowupTone) => void;
+  onScenarioChange?: (scenario: FollowupScenario) => void;
   onCopy?: () => void;
+  /** Revenir au texte du modèle (les modifications sont remplacées). */
   onRegenerate?: () => void;
   onMarkFollowedUp?: () => void;
   /** Appelé quand l'objet ou le message perd le focus (enregistrement des modifications). */
@@ -43,14 +44,17 @@ type AiFollowupBlockProps = {
   className?: string;
 };
 
-export function AiFollowupBlock({
+export function FollowupBlock({
   state,
   subject,
   body,
   tone,
+  scenario,
+  recommendedScenario,
   onSubjectChange,
   onBodyChange,
   onToneChange,
+  onScenarioChange,
   onCopy,
   onRegenerate,
   onMarkFollowedUp,
@@ -58,49 +62,49 @@ export function AiFollowupBlock({
   gmailHref,
   onOpenGmail,
   className,
-}: AiFollowupBlockProps) {
+}: FollowupBlockProps) {
   const generating = state === "generating";
 
   return (
     <section
-      aria-label="Relance générée par l'IA"
+      aria-label="Relance"
       className={cn(
-        "relative isolate rounded-xl border border-primary/15 bg-surface-tinted/80 p-5 shadow-[0_12px_40px_-20px_var(--primary)] backdrop-blur-sm",
+        "relative isolate rounded-xl border border-primary/15 bg-surface-tinted/80 p-4 shadow-[0_12px_40px_-20px_var(--primary)] backdrop-blur-sm sm:p-5",
         className
       )}
     >
-      {/* Liseré lumineux en dégradé et halo discret : identité « IA » du bloc. */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-6 -top-px h-px bg-gradient-to-r from-transparent via-accent-violet/70 to-transparent"
-      />
-      <span
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute -top-10 left-1/2 -z-10 h-24 w-2/3 -translate-x-1/2 rounded-full bg-accent-violet/15 blur-3xl transition-opacity duration-500",
-          generating ? "opacity-100" : "opacity-50"
-        )}
+        className="pointer-events-none absolute inset-x-6 -top-px h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent"
       />
       <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2.5 text-[15px] leading-6 font-semibold whitespace-nowrap text-foreground">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent-violet shadow-[0_4px_14px_-4px_var(--accent-violet)]">
-            <SparklesIcon className={cn("size-4 text-white", generating && "animate-pulse")} strokeWidth={2} aria-hidden />
+        <h3 className="flex items-center gap-2.5 text-[15px] leading-6 font-semibold text-foreground">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent-violet shadow-[0_4px_14px_-4px_var(--accent-violet)]">
+            <PenLineIcon className="size-4 text-white" strokeWidth={2} aria-hidden />
           </span>
-          <span className={cn("text-ai-gradient", generating && "animate-ai-shimmer")}>
-            {generating ? "Rédaction en cours…" : "Relance générée par l'IA"}
-          </span>
-          {state === "edited" && (
-            <span className="text-caption font-normal text-foreground-tertiary">· modifiée</span>
-          )}
+          {generating ? "Préparation…" : "Relance à personnaliser"}
+          {state === "edited" && <span className="text-caption font-normal text-foreground-tertiary">· modifiée</span>}
         </h3>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {onScenarioChange && scenario && (
+            <Select value={scenario} onValueChange={(value) => onScenarioChange(value as FollowupScenario)} disabled={generating}>
+              <SelectTrigger size="sm" className="w-[220px] max-w-full" aria-label="Modèle de relance">
+                <span className="text-foreground-tertiary">Modèle</span>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                {FOLLOWUP_SCENARIOS.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {SCENARIO_LABELS[value]}
+                    {value === recommendedScenario && <span className="text-caption text-success"> · conseillé</span>}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {onToneChange ? (
-            <Select
-              value={tone}
-              onValueChange={(value) => onToneChange(value as FollowupTone)}
-              disabled={generating}
-            >
-              <SelectTrigger size="sm" className="w-[132px]" aria-label="Ton de la relance">
+            <Select value={tone} onValueChange={(value) => onToneChange(value as FollowupTone)} disabled={generating}>
+              <SelectTrigger size="sm" className="w-[150px]" aria-label="Ton de la relance">
                 <span className="text-foreground-tertiary">Ton</span>
                 <SelectValue />
               </SelectTrigger>
@@ -122,13 +126,13 @@ export function AiFollowupBlock({
                   variant="secondary"
                   size="icon-sm"
                   onClick={onRegenerate}
-                  disabled={generating}
-                  aria-label="Régénérer la relance (R)"
+                  disabled={generating || state !== "edited"}
+                  aria-label="Revenir au texte du modèle"
                 >
-                  <RefreshCwIcon className={cn(generating && "animate-spin")} />
+                  <RotateCcwIcon />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Régénérer · R</TooltipContent>
+              <TooltipContent>Revenir au texte du modèle</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -137,10 +141,10 @@ export function AiFollowupBlock({
       <div className="relative rounded-lg border bg-surface shadow-xs" aria-busy={generating || undefined}>
         {state === "error" ? (
           <div className="flex flex-col items-start gap-3 p-4">
-            <p className="text-body text-foreground">La rédaction a échoué.</p>
+            <p className="text-body text-foreground">La relance n&apos;a pas pu être préparée.</p>
             {onRegenerate && (
               <Button variant="secondary" size="sm" onClick={onRegenerate}>
-                <RefreshCwIcon />
+                <RotateCcwIcon />
                 Réessayer
               </Button>
             )}
@@ -162,19 +166,18 @@ export function AiFollowupBlock({
                 onChange={(event) => onSubjectChange?.(event.target.value)}
                 onBlur={onEditEnd}
                 readOnly={generating}
+                maxLength={300}
                 className="h-11 min-w-0 flex-1 bg-transparent text-body font-medium text-foreground outline-none"
               />
             </label>
-            {generating && (
-              <span aria-hidden className="pointer-events-none absolute right-4 bottom-3 h-4 w-0.5 animate-caret rounded-full bg-primary" />
-            )}
             <textarea
               aria-label="Message"
               value={body}
               onChange={(event) => onBodyChange?.(event.target.value)}
               onBlur={onEditEnd}
               readOnly={generating}
-              className="block min-h-60 w-full resize-y bg-transparent px-4 py-3.5 text-body leading-[22px] text-foreground outline-none"
+              maxLength={10000}
+              className="block min-h-72 w-full resize-y bg-transparent [field-sizing:content] px-4 py-3.5 text-body leading-[22px] text-foreground outline-none"
             />
           </>
         )}
@@ -206,11 +209,7 @@ export function AiFollowupBlock({
               {!gmailHref && <TooltipContent>Aucun email pour ce prospect : copiez le message.</TooltipContent>}
             </Tooltip>
           ))}
-        <Button
-          variant={gmailHref !== undefined ? "secondary" : "primary"}
-          onClick={onCopy}
-          disabled={generating || state === "error"}
-        >
+        <Button variant={gmailHref !== undefined ? "secondary" : "primary"} onClick={onCopy} disabled={generating || state === "error"}>
           <FileTextIcon />
           Copier le message
         </Button>
@@ -221,6 +220,12 @@ export function AiFollowupBlock({
           </Button>
         )}
       </footer>
+      {gmailHref !== undefined && (
+        <p className="mt-3 text-caption text-foreground-tertiary">
+          Gmail s&apos;ouvre avec un brouillon prérempli : relisez-le et envoyez-le depuis Gmail. LeadPilot n&apos;envoie rien à
+          votre place.
+        </p>
+      )}
     </section>
   );
 }

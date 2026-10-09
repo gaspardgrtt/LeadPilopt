@@ -24,16 +24,20 @@ const numericDate = new Intl.DateTimeFormat("fr-FR", {
 
 const integer = new Intl.NumberFormat("fr-FR");
 
+// Intl sépare les milliers par une espace fine insécable (U+202F), que la police ne rend pas aux
+// petites tailles (« 21406 € ») : on la remplace par l'espace insécable classique (U+00A0).
+const nbsp = (text: string) => text.replace(/\u202f/g, "\u00a0");
+
 /** Montant en euros sans décimales ; au-delà d'un million : « 1,2 M€ ». */
 export function formatEuro(amount: number): string {
   if (Math.abs(amount) >= 1_000_000) {
-    return `${compactEuro.format(amount / 1_000_000)} M€`;
+    return `${nbsp(compactEuro.format(amount / 1_000_000))}\u00a0M€`;
   }
-  return euro.format(amount);
+  return nbsp(euro.format(amount));
 }
 
 export function formatInteger(value: number): string {
-  return integer.format(value);
+  return nbsp(integer.format(value));
 }
 
 /** Date longue des fiches : « 4 sept. 2026 ». */

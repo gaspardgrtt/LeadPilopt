@@ -326,7 +326,7 @@ export async function hasSentFollowup(): Promise<boolean> {
 
 export type WeeklyActivity = { generated: number; copied: number };
 
-/** Activité des 7 derniers jours : relances rédigées par l'IA et relances copiées pour envoi. */
+/** Activité des 7 derniers jours : relances préparées, et relances copiées ou ouvertes dans Gmail. */
 export async function getWeeklyActivity(): Promise<WeeklyActivity> {
   const user = await requireUser();
   const supabase = await createClient();

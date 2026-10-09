@@ -28,13 +28,13 @@ export function ScoreGauge({ score, className }: ScoreGaugeProps) {
     >
       <span
         className={cn(
-          "w-6 text-dense font-semibold tabular-nums",
+          "min-w-6 text-dense font-semibold whitespace-nowrap tabular-nums",
           level === "faible" ? "text-foreground-secondary" : "text-foreground"
         )}
       >
         {clamped}
       </span>
-      <span className="h-1.5 w-14 overflow-hidden rounded-full bg-border/70 shadow-[inset_0_1px_1px_rgb(16_24_40/0.06)]">
+      <span className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-border/70 shadow-[inset_0_1px_1px_rgb(16_24_40/0.06)]">
         <span
           className={cn("block h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-standard", LEVEL_COLORS[level])}
           style={{ width: `${clamped}%` }}

@@ -12,8 +12,9 @@ import { CountUp } from "./count-up";
 import { ProgressRing } from "./progress-ring";
 
 // Bandeau d'ouverture du dashboard (inspiration Linear / Vercel) : fond sombre avec aurore
-// indigo-violet en mouvement lent, chiffre clé en très grand, action principale « session de
-// relance » qui ouvre directement le prospect le plus rentable.
+// indigo-violet en mouvement lent, chiffre clé en grand, une action principale (« session de
+// relance », qui ouvre le prospect le plus rentable) et, à droite, un seul indicateur (part des
+// affaires oubliées) plus deux statistiques réelles.
 
 type DashboardHeroProps = {
   firstName: string;
@@ -24,6 +25,8 @@ type DashboardHeroProps = {
   nbAffairesOuvertes: number;
   caRecupere: number;
   weekly: { generated: number; copied: number };
+  /** Seuil d'inactivité du compte (jours sans contact avant qu'une affaire soit oubliée). */
+  threshold: number;
   /** Fiche du premier prospect à relancer, ou la liste s'il n'y en a pas. */
   startHref: string;
 };
@@ -39,6 +42,7 @@ export function DashboardHero({
   nbAffairesOuvertes,
   caRecupere,
   weekly,
+  threshold,
   startHref,
 }: DashboardHeroProps) {
   const router = useRouter();
@@ -49,7 +53,7 @@ export function DashboardHero({
       initial={{ opacity: 0, y: 16, scale: 0.99 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.7, ease: EASE }}
-      className="relative isolate overflow-hidden rounded-2xl bg-hero px-6 py-8 text-hero-foreground shadow-hero ring-1 ring-white/10 sm:px-10 sm:py-10"
+      className="relative isolate overflow-hidden rounded-2xl bg-hero px-5 py-6 text-hero-foreground shadow-hero ring-1 ring-white/10 sm:px-9 sm:py-8"
       aria-labelledby="hero-title"
     >
       {/* Aurore : trois halos flous qui dérivent lentement. */}
@@ -68,18 +72,18 @@ export function DashboardHero({
       />
       <span aria-hidden className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
 
-      <div className="grid items-center gap-10 lg:grid-cols-[1.45fr_1fr]">
-        <div>
-          <motion.div
+      <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6 xl:grid-cols-[1.5fr_1fr] xl:gap-10">
+        <div className="min-w-0">
+          <motion.p
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: EASE, delay: 0.1 }}
-            className="inline-flex flex-wrap items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-caption font-medium text-hero-muted ring-1 ring-white/10 backdrop-blur"
+            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-dense text-hero-muted"
           >
             <span className="first-letter:uppercase">{todayLabel}</span>
             {importLabel && (
               <>
-                <span aria-hidden className="size-1 rounded-full bg-hero-muted/60" />
+                <span aria-hidden className="size-1 rounded-full bg-hero-muted/70" />
                 <span className="inline-flex items-center gap-1.5">
                   <span aria-hidden className="relative flex size-1.5">
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-success-soft opacity-60 motion-reduce:animate-none" />
@@ -89,31 +93,30 @@ export function DashboardHero({
                 </span>
               </>
             )}
-          </motion.div>
+          </motion.p>
 
           <motion.h1
             id="hero-title"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
-            className="mt-6 text-[22px] leading-8 font-semibold tracking-[-0.02em] text-hero-foreground sm:text-[26px]"
+            className="mt-3 text-[19px] leading-7 font-semibold tracking-[-0.015em] text-hero-foreground sm:text-[21px]"
           >
-            Bonjour {firstName},{" "}
-            <span className="text-hero-muted">voici l&apos;argent qui dort dans votre pipeline.</span>
+            {firstName ? `Bonjour ${firstName},` : "Bonjour,"} <span className="text-hero-muted">voici l&apos;argent qui dort dans vos affaires.</span>
           </motion.h1>
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: EASE, delay: 0.25 }}
-            className="mt-5"
+            className="mt-3"
           >
             <CountUp
               value={caRecuperable}
               format={formatEuro}
-              className="block bg-gradient-to-br from-white via-white to-primary-light bg-clip-text text-[52px] leading-[1.05] font-bold tracking-[-0.045em] text-transparent tabular-nums sm:text-[68px]"
+              className="block bg-gradient-to-br from-white via-white to-primary-light bg-clip-text text-[46px] leading-[1.05] font-bold tracking-[-0.045em] text-transparent tabular-nums sm:text-[60px]"
             />
-            <p className="mt-2 text-[15px] leading-6 text-hero-muted">
+            <p className="mt-1.5 text-[15px] leading-6 text-hero-muted">
               récupérables sur{" "}
               <span className="font-semibold text-hero-foreground">
                 {formatInteger(nbOublies)} affaire{nbOublies > 1 ? "s" : ""} oubliée{nbOublies > 1 ? "s" : ""}
@@ -125,19 +128,21 @@ export function DashboardHero({
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: EASE, delay: 0.4 }}
-            className="mt-8 flex flex-wrap items-center gap-3"
+            className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
           >
-            <MovingBorderButton size="lg" onClick={() => router.push(startHref)}>
+            <MovingBorderButton size="lg" className="w-full sm:w-auto" onClick={() => router.push(startHref)}>
               <SparklesIcon />
               Démarrer la session de relance
               <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </MovingBorderButton>
             <Link
               href="/import"
-              className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-white/[0.07] px-4 text-body font-medium text-hero-foreground ring-1 ring-white/15 backdrop-blur transition-colors duration-200 outline-none hover:bg-white/[0.12] focus-visible:ring-[3px] focus-visible:ring-primary-light/50"
+              title="Nouvel import"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-4 text-body font-medium text-hero-foreground ring-1 ring-white/25 transition-colors duration-200 outline-none hover:bg-white/[0.08] focus-visible:ring-[3px] focus-visible:ring-primary-light/50 lg:max-xl:px-3"
             >
-              <DownloadIcon className="size-4" />
-              Nouvel import
+              <DownloadIcon className="size-4" aria-hidden />
+              {/* Entre 1024 et 1280 px, l'icône seule laisse les deux actions sur une ligne. */}
+              <span className="lg:max-xl:sr-only">Nouvel import</span>
             </Link>
           </motion.div>
         </div>
@@ -146,42 +151,32 @@ export function DashboardHero({
           initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: EASE, delay: 0.3 }}
-          className="rounded-2xl bg-white/[0.05] p-6 ring-1 ring-white/10 backdrop-blur-md"
+          className="rounded-2xl bg-white/[0.05] p-5 ring-1 ring-white/10 backdrop-blur-md"
         >
-          <div className="flex items-center gap-6">
-            <ProgressRing value={forgottenShare} size={132} stroke={11} gradientId="hero-ring">
-              <span className="text-[28px] leading-8 font-bold tracking-[-0.03em] tabular-nums">
+          <div className="flex items-center gap-5">
+            <ProgressRing value={forgottenShare} size={104} stroke={9} gradientId="hero-ring">
+              <span className="text-[24px] leading-7 font-bold tracking-[-0.03em] tabular-nums">
                 {Math.round(forgottenShare * 100)}&nbsp;%
               </span>
-              <span className="mt-0.5 text-caption font-normal text-hero-muted">oubliées</span>
             </ProgressRing>
             <div className="min-w-0">
-              <p className="text-body font-semibold">Part du pipeline à l&apos;abandon</p>
+              <p className="text-body font-semibold">de vos affaires en cours sont oubliées</p>
               <p className="mt-1 text-dense text-hero-muted">
-                {formatInteger(nbOublies)} affaire{nbOublies > 1 ? "s" : ""} sans contact sur{" "}
-                {formatInteger(nbAffairesOuvertes)} ouvertes.
+                {formatInteger(nbOublies)} sur {formatInteger(nbAffairesOuvertes)}, sans contact depuis plus de {threshold} jours.
               </p>
             </div>
           </div>
 
-          <dl className="mt-6 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white/[0.04] p-4 ring-1 ring-white/[0.08]">
-              <dt className="text-caption font-normal text-hero-muted">CA récupéré</dt>
-              <dd className="mt-1">
-                <CountUp value={caRecupere} format={formatEuro} className="block text-[20px] leading-7 font-semibold tracking-[-0.02em] text-success-soft tabular-nums" />
-                <span className="block text-caption font-normal text-hero-muted">gagné après relance</span>
+          <dl className="mt-5 flex flex-col gap-2.5 border-t border-white/10 pt-4 text-dense">
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-hero-muted">Gagné après une relance</dt>
+              <dd>
+                <CountUp value={caRecupere} format={formatEuro} className="font-semibold text-success-soft tabular-nums" />
               </dd>
             </div>
-            <div className="rounded-xl bg-white/[0.04] p-4 ring-1 ring-white/[0.08]">
-              <dt className="text-caption font-normal text-hero-muted">Relances cette semaine</dt>
-              <dd className="mt-1">
-                <span className="block text-[20px] leading-7 font-semibold tracking-[-0.02em] tabular-nums">
-                  {formatInteger(weekly.copied)} envoyée{weekly.copied > 1 ? "s" : ""}
-                </span>
-                <span className="block text-caption font-normal text-hero-muted">
-                  sur {formatInteger(weekly.generated)} rédigée{weekly.generated > 1 ? "s" : ""} par l&apos;IA
-                </span>
-              </dd>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-hero-muted">Relances copiées ou ouvertes (7 j)</dt>
+              <dd className="font-semibold tabular-nums">{formatInteger(weekly.copied)}</dd>
             </div>
           </dl>
         </motion.div>
