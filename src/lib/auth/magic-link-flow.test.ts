@@ -15,12 +15,15 @@ type Cookie = { name: string; value: string };
 /** Navigateur minimal : un pot de cookies partagé entre les requêtes. */
 function browser() {
   const jar = new Map<string, string>();
+  const maxAges = new Map<string, number | undefined>();
   return {
     jar,
+    maxAges,
     cookies: {
       getAll: (): Cookie[] => [...jar].map(([name, value]) => ({ name, value })),
       setAll: (toSet: { name: string; value: string; options?: { maxAge?: number } }[]) => {
         for (const { name, value, options } of toSet) {
+          maxAges.set(name, options?.maxAge);
           if (!value || options?.maxAge === 0) jar.delete(name);
           else jar.set(name, value);
         }
@@ -106,7 +109,10 @@ describe("lien magique (PKCE, un verifier par demande)", () => {
     const { data, error } = await openLink(b, server, redirect, "code-1");
     expect(error).toBeNull();
     expect(data.session?.access_token).toBe("jeton-test");
-    expect([...b.jar.keys()].some((name) => name.includes("-auth-token") && !name.includes("verifier"))).toBe(true);
+    const sessionCookies = [...b.jar.keys()].filter((name) => name.includes("-auth-token") && !name.includes("verifier"));
+    expect(sessionCookies.length).toBeGreaterThan(0);
+    // Cookie persistant (400 jours) : la session survit à la fermeture du navigateur.
+    for (const name of sessionCookies) expect(b.maxAges.get(name)).toBe(400 * 24 * 60 * 60);
   });
 
   it("garde le premier lien valable quand l'utilisateur en redemande un (cause du bug)", async () => {

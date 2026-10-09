@@ -14,6 +14,9 @@ import { getSupabaseEnv } from "./env";
  */
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
+  // En-têtes fournis par @supabase/ssr avec les cookies renouvelés (Cache-Control: private,
+  // no-store…) : une réponse qui pose une session ne doit jamais être mise en cache par un CDN.
+  let authHeaders: Record<string, string> = {};
 
   const env = getSupabaseEnv();
   if (!env) {
@@ -30,12 +33,14 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, headers) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) =>
           response.cookies.set(name, value, options)
         );
+        authHeaders = { ...authHeaders, ...headers };
+        Object.entries(headers ?? {}).forEach(([key, value]) => response.headers.set(key, value));
       },
     },
   });
@@ -51,28 +56,30 @@ export async function updateSession(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       const unauthorized = NextResponse.json({ message: "Session expirée : reconnectez-vous." }, { status: 401 });
       response.cookies.getAll().forEach((cookie) => unauthorized.cookies.set(cookie));
+      Object.entries(authHeaders).forEach(([key, value]) => unauthorized.headers.set(key, value));
       return unauthorized;
     }
     const url = request.nextUrl.clone();
     url.pathname = LOGIN_PATH;
     url.search = "";
     if (pathname !== "/") url.searchParams.set("suivant", `${pathname}${search}`);
-    return redirectWithCookies(url, response);
+    return redirectWithCookies(url, response, authHeaders);
   }
 
   if (isAuthenticated && pathname === LOGIN_PATH) {
     const url = request.nextUrl.clone();
     url.pathname = HOME_PATH;
     url.search = "";
-    return redirectWithCookies(url, response);
+    return redirectWithCookies(url, response, authHeaders);
   }
 
   return response;
 }
 
-/** Redirige en conservant les cookies de session éventuellement renouvelés. */
-function redirectWithCookies(url: URL, from: NextResponse) {
+/** Redirige en conservant les cookies de session éventuellement renouvelés et leurs en-têtes. */
+function redirectWithCookies(url: URL, from: NextResponse, headers: Record<string, string>) {
   const redirect = NextResponse.redirect(url);
   from.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+  Object.entries(headers).forEach(([key, value]) => redirect.headers.set(key, value));
   return redirect;
 }
