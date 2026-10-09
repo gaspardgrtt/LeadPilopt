@@ -10,12 +10,13 @@ import { SilenceDays } from "@/components/shared/silence-days";
 import { ScoreExplanationCard } from "@/components/score/score-explanation-card";
 import { MarkScoreSeen } from "@/components/onboarding/onboarding";
 import { detectFollowupContext, scenarioFromTag } from "@/lib/followups/templates";
+import { getBrevoSenderIdentity } from "@/lib/brevo/config";
 import type { ProspectDetail } from "@/lib/data/prospects";
 import type { ScoreExplanation } from "@/lib/scoring/score";
 import { daysSince, formatDate, formatEuro } from "@/lib/format";
 import { STAGE_LABELS, type FollowupTone } from "@/lib/prospects";
 
-import { FollowupPanel, ProspectStatusControl } from "./prospect-actions";
+import { FollowupPanel, OppositionControl, ProspectStatusControl } from "./prospect-actions";
 
 // E5 — vue de la fiche (présentation) : pourquoi ce dossier compte, la relance à envoyer, puis les
 // informations. Alimentée par la page (données réelles) et par l'aperçu /ui/apercu/prospect.
@@ -98,6 +99,8 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
             defaultTone={defaultTone}
             contactEmail={prospect.contact_email}
             context={{ recommended: followupContext.scenario, reasons: followupContext.reasons }}
+            opposition={prospect.opposition_prospection_le ?? null}
+            emailSending={getBrevoSenderIdentity() !== null}
             relance={
               relance
                 ? {
@@ -107,6 +110,10 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
                     ton: relance.ton,
                     scenario: scenarioFromTag(relance.modele_ia),
                     copiee: Boolean(relance.copiee_le),
+                    sent:
+                      relance.envoi_statut === "envoyee" && relance.envoyee_le && relance.envoyee_a
+                        ? { at: relance.envoyee_le, to: relance.envoyee_a }
+                        : null,
                   }
                 : null
             }
@@ -166,6 +173,9 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
                   </span>
                 </InfoRow>
                 <InfoRow label="Score">{shownScore === null ? DASH : <ScoreGauge score={shownScore} />}</InfoRow>
+                <InfoRow label="Prospection">
+                  <OppositionControl prospectId={prospect.id} opposition={prospect.opposition_prospection_le ?? null} />
+                </InfoRow>
               </dl>
             </CardContent>
           </Card>

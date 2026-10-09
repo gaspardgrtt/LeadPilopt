@@ -148,6 +148,30 @@ await db.query("delete from public.prospects where id = $1", [pidB]);
 await as(A);
 await db.query("delete from public.relances where id = $1", [relanceA]);
 
+// --- Envoi par e-mail (Brevo) : réservation atomique, isolation, opposition (migration envoi_email_brevo)
+await as(A);
+const aEnvoyer = (await db.query(
+  "insert into public.relances (prospect_id, utilisateur_id, objet, corps, ton) values ($1, $2, 'Objet', 'Corps', 'direct') returning id",
+  [pidA, A]
+)).rows[0].id;
+const reserver = "update public.relances set envoi_statut = 'en_cours', envoi_demande_le = now() where id = $1 and (envoi_statut is null or envoi_statut = 'echec') returning id";
+await as(B);
+ok("B ne peut pas réserver l'envoi d'une relance de A", (await db.query(reserver, [aEnvoyer])).rows.length === 0);
+await as(A);
+ok("A réserve l'envoi de sa relance", (await db.query(reserver, [aEnvoyer])).rows.length === 1);
+ok("double envoi : une seconde réservation est refusée", (await db.query(reserver, [aEnvoyer])).rows.length === 0);
+await expectError("statut « envoyée » sans date ni destinataire", "update public.relances set envoi_statut = 'envoyee' where id = $1", [aEnvoyer]);
+await db.query("update public.relances set envoi_statut = 'envoyee', envoyee_le = now(), envoyee_a = 'jonas@exemple.fr', brevo_message_id = '<1@smtp-relay>' where id = $1", [aEnvoyer]);
+ok("relance envoyée : statut et identifiant Brevo enregistrés", (await db.query("select envoi_statut, brevo_message_id from public.relances where id = $1", [aEnvoyer])).rows[0].brevo_message_id === "<1@smtp-relay>");
+ok("relance envoyée : plus aucune réservation possible", (await db.query(reserver, [aEnvoyer])).rows.length === 0);
+await db.query("delete from public.relances where id = $1", [aEnvoyer]);
+await db.query("update public.prospects set opposition_prospection_le = now() where id = $1", [pidA]);
+ok("A enregistre l'opposition de son prospect", (await db.query("select opposition_prospection_le from public.prospects where id = $1", [pidA])).rows[0].opposition_prospection_le !== null);
+await as(B);
+ok("B ne peut pas lever l'opposition d'un prospect de A", (await db.query("update public.prospects set opposition_prospection_le = null where id = $1", [pidA])).affectedRows === 0);
+await as(A);
+await db.query("update public.prospects set opposition_prospection_le = null where id = $1", [pidA]);
+
 // --- Kanban « Mes dossiers » : changement d'étape puis recalcul (action updateProspectStage)
 await as(A);
 await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact)

@@ -38,6 +38,7 @@ export function sampleProspectRow(p: SampleProspect, notes: string | null = null
     etape_brute: null,
     date_dernier_contact: p.lastContact,
     notes,
+    opposition_prospection_le: null,
     statut: p.status,
     score: p.score,
     ca_recuperable_eur: p.recoverable,

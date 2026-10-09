@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, FileTextIcon, PenLineIcon, RotateCcwIcon } from "lucide-react";
+import { BanIcon, CheckIcon, CircleCheckIcon, FileTextIcon, MailIcon, PenLineIcon, RotateCcwIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { FOLLOWUP_TONES, TONE_LABELS, type FollowupTone } from "@/lib/prospects";
@@ -41,8 +41,16 @@ type FollowupBlockProps = {
    */
   gmailHref?: string | null;
   onOpenGmail?: () => void;
+  /** Envoi par e-mail (Brevo), après aperçu et confirmation. `disabledReason` : bouton désactivé. */
+  sendEmail?: { onClick: () => void; disabledReason?: string | null };
+  /** Relance déjà envoyée par e-mail : le message devient en lecture seule. */
+  sentInfo?: { at: string; to: string } | null;
+  /** Contact interdit (opposition à la prospection) : toutes les actions de contact sont désactivées. */
+  blockedReason?: string | null;
   className?: string;
 };
+
+const sentDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 export function FollowupBlock({
   state,
@@ -61,9 +69,15 @@ export function FollowupBlock({
   onEditEnd,
   gmailHref,
   onOpenGmail,
+  sendEmail,
+  sentInfo,
+  blockedReason,
   className,
 }: FollowupBlockProps) {
   const generating = state === "generating";
+  // Message figé une fois envoyé ; contact impossible en cas d'opposition.
+  const locked = Boolean(sentInfo);
+  const contactDisabled = Boolean(blockedReason);
 
   return (
     <section
@@ -87,7 +101,7 @@ export function FollowupBlock({
         </h3>
         <div className="flex flex-wrap items-center gap-1.5">
           {onScenarioChange && scenario && (
-            <Select value={scenario} onValueChange={(value) => onScenarioChange(value as FollowupScenario)} disabled={generating}>
+            <Select value={scenario} onValueChange={(value) => onScenarioChange(value as FollowupScenario)} disabled={generating || locked}>
               <SelectTrigger size="sm" className="w-[220px] max-w-full" aria-label="Modèle de relance">
                 <span className="text-foreground-tertiary">Modèle</span>
                 <SelectValue />
@@ -103,7 +117,7 @@ export function FollowupBlock({
             </Select>
           )}
           {onToneChange ? (
-            <Select value={tone} onValueChange={(value) => onToneChange(value as FollowupTone)} disabled={generating}>
+            <Select value={tone} onValueChange={(value) => onToneChange(value as FollowupTone)} disabled={generating || locked}>
               <SelectTrigger size="sm" className="w-[150px]" aria-label="Ton de la relance">
                 <span className="text-foreground-tertiary">Ton</span>
                 <SelectValue />
@@ -126,7 +140,7 @@ export function FollowupBlock({
                   variant="secondary"
                   size="icon-sm"
                   onClick={onRegenerate}
-                  disabled={generating || state !== "edited"}
+                  disabled={generating || locked || state !== "edited"}
                   aria-label="Revenir au texte du modèle"
                 >
                   <RotateCcwIcon />
@@ -138,6 +152,21 @@ export function FollowupBlock({
         </div>
       </header>
 
+      {blockedReason && (
+        <p role="status" className="mb-3 flex items-start gap-2 rounded-lg bg-danger-soft px-3.5 py-2.5 text-dense text-danger">
+          <BanIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {blockedReason}
+        </p>
+      )}
+      {sentInfo && (
+        <p role="status" className="mb-3 flex items-start gap-2 rounded-lg bg-success-soft px-3.5 py-2.5 text-dense text-success">
+          <CircleCheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            Envoyée par e-mail le {sentDate.format(new Date(sentInfo.at))} à <span className="font-semibold">{sentInfo.to}</span>. Le
+            message n&apos;est plus modifiable.
+          </span>
+        </p>
+      )}
       <div className="relative rounded-lg border bg-surface shadow-xs" aria-busy={generating || undefined}>
         {state === "error" ? (
           <div className="flex flex-col items-start gap-3 p-4">
@@ -165,7 +194,7 @@ export function FollowupBlock({
                 value={subject}
                 onChange={(event) => onSubjectChange?.(event.target.value)}
                 onBlur={onEditEnd}
-                readOnly={generating}
+                readOnly={generating || locked}
                 maxLength={300}
                 className="h-11 min-w-0 flex-1 bg-transparent text-body font-medium text-foreground outline-none"
               />
@@ -175,7 +204,7 @@ export function FollowupBlock({
               value={body}
               onChange={(event) => onBodyChange?.(event.target.value)}
               onBlur={onEditEnd}
-              readOnly={generating}
+              readOnly={generating || locked}
               maxLength={10000}
               className="block min-h-72 w-full resize-y bg-transparent [field-sizing:content] px-4 py-3.5 text-body leading-[22px] text-foreground outline-none"
             />
@@ -185,7 +214,7 @@ export function FollowupBlock({
 
       <footer className="mt-4 flex flex-wrap items-center gap-2.5">
         {gmailHref !== undefined &&
-          (gmailHref && !generating && state !== "error" ? (
+          (gmailHref && !generating && state !== "error" && !contactDisabled && !locked ? (
             <Button asChild>
               <a href={gmailHref} target="_blank" rel="noopener noreferrer" onClick={onOpenGmail}>
                 <span className="flex size-5 items-center justify-center rounded-[5px] bg-white shadow-xs">
@@ -206,10 +235,31 @@ export function FollowupBlock({
                   </Button>
                 </span>
               </TooltipTrigger>
-              {!gmailHref && <TooltipContent>Aucun email pour ce prospect : copiez le message.</TooltipContent>}
+              {!gmailHref && !contactDisabled && !locked && <TooltipContent>Aucun email pour ce prospect : copiez le message.</TooltipContent>}
             </Tooltip>
           ))}
-        <Button variant={gmailHref !== undefined ? "secondary" : "primary"} onClick={onCopy} disabled={generating || state === "error"}>
+        {sendEmail && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span tabIndex={sendEmail.disabledReason ? 0 : -1} className="inline-flex rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/25">
+                <Button
+                  variant="secondary"
+                  onClick={sendEmail.onClick}
+                  disabled={generating || state === "error" || contactDisabled || locked || Boolean(sendEmail.disabledReason)}
+                >
+                  <MailIcon />
+                  Envoyer par e-mail
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {sendEmail.disabledReason && !locked && !contactDisabled && <TooltipContent>{sendEmail.disabledReason}</TooltipContent>}
+          </Tooltip>
+        )}
+        <Button
+          variant={gmailHref !== undefined ? "secondary" : "primary"}
+          onClick={onCopy}
+          disabled={generating || state === "error" || contactDisabled}
+        >
           <FileTextIcon />
           Copier le message
         </Button>
@@ -220,10 +270,11 @@ export function FollowupBlock({
           </Button>
         )}
       </footer>
-      {gmailHref !== undefined && (
+      {gmailHref !== undefined && !locked && !contactDisabled && (
         <p className="mt-3 text-caption text-foreground-tertiary">
-          Gmail s&apos;ouvre avec un brouillon prérempli : relisez-le et envoyez-le depuis Gmail. LeadPilot n&apos;envoie rien à
-          votre place.
+          {sendEmail
+            ? "« Ouvrir dans Gmail » prépare un brouillon que vous envoyez vous-même. « Envoyer par e-mail » envoie le message depuis LeadPilot, après aperçu et confirmation."
+            : "Gmail s'ouvre avec un brouillon prérempli : relisez-le et envoyez-le depuis Gmail. LeadPilot n'envoie rien à votre place."}
         </p>
       )}
     </section>

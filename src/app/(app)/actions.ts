@@ -8,6 +8,8 @@ import { DEAL_STAGES, FOLLOWUP_TONES, isProspectStatus, type DealStage, type Fol
 import { isFollowupScenario, renderFollowup, scenarioTag, type FollowupScenario } from "@/lib/followups/templates";
 import { isUuid } from "@/lib/data/prospects";
 import { formatPersonName } from "@/lib/user/display-name";
+import { getBrevoSenderIdentity } from "@/lib/brevo/config";
+import { buildEmailContent, checkEmailContent, isValidEmail } from "@/lib/followups/email";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -83,6 +85,21 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
 
   const user = await requireUser();
   const supabase = await createClient();
+  // Une relance envoyée (ou en cours d'envoi) par e-mail n'est plus modifiable.
+  const { data: current, error: readError } = await supabase
+    .from("relances")
+    .select("*")
+    .eq("utilisateur_id", user.id)
+    .eq("id", relanceId)
+    .maybeSingle();
+  if (readError) {
+    console.error("[relances] lecture impossible", { code: readError.code });
+    return { ok: false, message: GENERIC_ERROR };
+  }
+  if (!current) return { ok: false, message: "Cette relance n'existe plus." };
+  if (current.envoi_statut === "envoyee" || current.envoi_statut === "en_cours") {
+    return { ok: false, message: "Cette relance a déjà été envoyée par e-mail : elle n'est plus modifiable." };
+  }
   const { data, error } = await supabase
     .from("relances")
     .update({ objet, corps })
@@ -185,7 +202,7 @@ export async function prepareFollowup(
     supabase.from("utilisateurs").select("nom, signature").eq("id", user.id).maybeSingle(),
     supabase
       .from("relances")
-      .select("id, copiee_le")
+      .select("*")
       .eq("utilisateur_id", user.id)
       .eq("prospect_id", prospectId)
       .order("cree_le", { ascending: false })
@@ -204,7 +221,8 @@ export async function prepareFollowup(
     nom: profil?.nom ? formatPersonName(profil.nom) : null,
   });
   const values = { objet, corps, ton, modele_ia: scenarioTag(scenario) };
-  const draft = latestResult.data && !latestResult.data.copiee_le ? latestResult.data : null;
+  const latest = latestResult.data;
+  const draft = latest && !latest.copiee_le && !latest.envoi_statut ? latest : null;
 
   const { data, error } = draft
     ? await supabase.from("relances").update(values).eq("utilisateur_id", user.id).eq("id", draft.id).select("id").single()
@@ -218,4 +236,97 @@ export async function prepareFollowup(
     return { ok: false, message: GENERIC_ERROR };
   }
   return { ok: true, relance: { id: data.id, objet, corps, ton, scenario } };
+}
+
+export type EmailPreview = {
+  to: { email: string; name: string | null };
+  from: { email: string; name: string };
+  replyTo: string | null;
+  subject: string;
+  /** Message saisi, renvoyé tel quel à la route d'envoi (contrôle d'identité avec le brouillon). */
+  body: string;
+  /** Texte exact envoyé, mention d'opposition comprise. */
+  text: string;
+};
+
+/**
+ * Aperçu de l'e-mail avant confirmation : destinataire, expéditeur et contenu tels que Brevo les
+ * recevra. Aucun envoi ici. Renvoie la raison quand l'envoi est impossible (opposition, adresse
+ * absente, configuration manquante, relance déjà envoyée).
+ */
+export async function getEmailPreview(
+  relanceId: string
+): Promise<{ ok: true; preview: EmailPreview } | { ok: false; message: string }> {
+  if (!isUuid(relanceId)) return { ok: false, message: "Requête invalide." };
+  const sender = getBrevoSenderIdentity();
+  if (!sender) return { ok: false, message: "L'envoi par e-mail n'est pas encore configuré." };
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  const { data: relance, error } = await supabase
+    .from("relances")
+    .select("*")
+    .eq("utilisateur_id", user.id)
+    .eq("id", relanceId)
+    .maybeSingle();
+  if (error) return { ok: false, message: GENERIC_ERROR };
+  if (!relance) return { ok: false, message: "Cette relance n'existe plus." };
+  if (relance.envoi_statut === "envoyee") return { ok: false, message: "Cette relance a déjà été envoyée par e-mail." };
+  if (relance.envoi_statut === "en_cours") return { ok: false, message: "Un envoi de cette relance est déjà en cours." };
+
+  const [prospectResult, profilResult] = await Promise.all([
+    supabase
+      .from("prospects")
+      .select("*")
+      .eq("utilisateur_id", user.id)
+      .eq("id", relance.prospect_id)
+      .maybeSingle(),
+    supabase.from("utilisateurs").select("email").eq("id", user.id).maybeSingle(),
+  ]);
+  if (prospectResult.error || profilResult.error) return { ok: false, message: GENERIC_ERROR };
+  const prospect = prospectResult.data;
+  if (!prospect) return { ok: false, message: "Ce prospect n'existe plus." };
+  if (prospect.opposition_prospection_le) {
+    return { ok: false, message: "Ce prospect s'est opposé à la prospection : aucun e-mail ne peut lui être envoyé." };
+  }
+  if (!isValidEmail(prospect.contact_email)) {
+    return { ok: false, message: "L'adresse e-mail de ce prospect est absente ou invalide." };
+  }
+  const content = checkEmailContent(relance.objet, relance.corps);
+  if (!content.ok) return { ok: false, message: content.message };
+
+  return {
+    ok: true,
+    preview: {
+      to: { email: prospect.contact_email.trim(), name: prospect.contact_nom?.trim() || null },
+      from: sender,
+      replyTo: profilResult.data?.email ?? null,
+      subject: content.subject,
+      body: content.body,
+      text: buildEmailContent(content.body).text,
+    },
+  };
+}
+
+/**
+ * Enregistre (ou lève) l'opposition d'un prospect à la prospection. Une opposition bloque tout envoi
+ * et passe le dossier en « Ignoré » pour qu'il ne soit plus proposé à la relance.
+ */
+export async function setProspectOpposition(prospectId: string, opposed: boolean): Promise<ActionResult> {
+  if (!isUuid(prospectId) || typeof opposed !== "boolean") return { ok: false, message: "Requête invalide." };
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("prospects")
+    .update(opposed ? { opposition_prospection_le: new Date().toISOString(), statut: "ignore" } : { opposition_prospection_le: null })
+    .eq("utilisateur_id", user.id)
+    .eq("id", prospectId)
+    .select("id");
+  if (error) {
+    console.error("[prospects] opposition impossible à enregistrer", { code: error.code });
+    return { ok: false, message: GENERIC_ERROR };
+  }
+  if (!data.length) return { ok: false, message: "Ce prospect n'existe plus." };
+  revalidateProspectViews();
+  return { ok: true };
 }

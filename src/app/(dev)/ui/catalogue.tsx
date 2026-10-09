@@ -380,6 +380,8 @@ export function Catalogue() {
             defaultTone="direct"
             contactEmail="jonas@nordwind.com"
             context={{ recommended: "decision", reasons: ["Étape : Négociation", "27 jours sans contact"] }}
+            opposition={null}
+            emailSending={false}
           />
         </div>
       </Section>

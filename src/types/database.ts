@@ -36,6 +36,7 @@ export type Database = {
           maj_le: string
           montant_eur: number | null
           notes: string | null
+          opposition_prospection_le: string | null
           proba_recuperation: number | null
           score: number | null
           statut: Database["public"]["Enums"]["statut_prospect"]
@@ -59,6 +60,7 @@ export type Database = {
           maj_le?: string
           montant_eur?: number | null
           notes?: string | null
+          opposition_prospection_le?: string | null
           proba_recuperation?: number | null
           score?: number | null
           statut?: Database["public"]["Enums"]["statut_prospect"]
@@ -82,6 +84,7 @@ export type Database = {
           maj_le?: string
           montant_eur?: number | null
           notes?: string | null
+          opposition_prospection_le?: string | null
           proba_recuperation?: number | null
           score?: number | null
           statut?: Database["public"]["Enums"]["statut_prospect"]
@@ -99,9 +102,15 @@ export type Database = {
       }
       relances: {
         Row: {
+          brevo_message_id: string | null
           copiee_le: string | null
           corps: string
           cree_le: string
+          envoi_demande_le: string | null
+          envoi_erreur: string | null
+          envoi_statut: string | null
+          envoyee_a: string | null
+          envoyee_le: string | null
           id: string
           modele_ia: string | null
           objet: string
@@ -110,9 +119,15 @@ export type Database = {
           utilisateur_id: string
         }
         Insert: {
+          brevo_message_id?: string | null
           copiee_le?: string | null
           corps: string
           cree_le?: string
+          envoi_demande_le?: string | null
+          envoi_erreur?: string | null
+          envoi_statut?: string | null
+          envoyee_a?: string | null
+          envoyee_le?: string | null
           id?: string
           modele_ia?: string | null
           objet: string
@@ -121,9 +136,15 @@ export type Database = {
           utilisateur_id: string
         }
         Update: {
+          brevo_message_id?: string | null
           copiee_le?: string | null
           corps?: string
           cree_le?: string
+          envoi_demande_le?: string | null
+          envoi_erreur?: string | null
+          envoi_statut?: string | null
+          envoyee_a?: string | null
+          envoyee_le?: string | null
           id?: string
           modele_ia?: string | null
           objet?: string

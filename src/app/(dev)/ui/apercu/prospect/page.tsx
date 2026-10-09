@@ -39,6 +39,12 @@ export default async function ProspectPreviewPage({ searchParams }: { searchPara
                   ton: "direct",
                   modele_ia: scenarioTag(scenario),
                   copiee_le: null,
+                  envoi_statut: null,
+                  envoi_demande_le: null,
+                  envoyee_le: null,
+                  envoyee_a: null,
+                  brevo_message_id: null,
+                  envoi_erreur: null,
                   cree_le: "2026-10-08T08:00:00Z",
                 }
               : null,

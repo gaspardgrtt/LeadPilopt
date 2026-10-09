@@ -48,7 +48,7 @@ En développement uniquement (404 en production) : catalogue des composants sur 
 ## Mise en ligne (Vercel)
 
 - Région des fonctions : Paris (`cdg1`, `vercel.json`), à côté de la base Supabase (eu-west-3).
-- Variables d'environnement (Production, et Preview si besoin) : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` (URL publique exacte, sans `/` final). Aucune clé secrète : la clé `service_role` / `sb_secret_` n'est jamais utilisée par l'application. Les variables `NEXT_PUBLIC_` sont figées au build : après une modification, redéployer.
+- Variables d'environnement (Production, et Preview si besoin) : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL` (URL publique exacte, sans `/` final) ; pour l'envoi par e-mail, `BREVO_API_KEY` (secrète), `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`. La seule clé secrète est `BREVO_API_KEY`, lue côté serveur ; la clé `service_role` / `sb_secret_` de Supabase n'est jamais utilisée par l'application. Les variables `NEXT_PUBLIC_` sont figées au build : après une modification, redéployer.
 - Supabase > Authentication > URL Configuration : Site URL = l'URL publique ; Redirect URLs = `https://<domaine>/**` (garder `http://localhost:3000/**` pour le développement). À faire dans le tableau de bord plutôt qu'avec `config push`, dont le fichier local pointe vers localhost.
 - SMTP personnalisé (Authentication > SMTP Settings) avant d'ouvrir à de vrais utilisateurs : sans lui, 2 emails de connexion par heure pour tout le projet.
 - Isolation des données : chaque compte (une agence) ne voit que ses propres lignes ; Row Level Security sur les 3 tables, aucun droit pour les visiteurs anonymes, vérifié par `npm run test:db`.
@@ -74,6 +74,19 @@ Sur la fiche d'un prospect, « Préparer la relance » complète un modèle réd
 - **Personnalisation** avec les seules données réelles : prénom du contact (sinon « Bonjour, »), entreprise, date du dernier échange (sinon la phrase est reformulée sans date), mention de la proposition uniquement aux étapes proposition et négociation. Les notes importées ne sont jamais recopiées dans le message (notes internes). La signature du compte est ajoutée telle quelle.
 - La relance est préparée côté serveur (action `prepareFollowup`, données relues en base) et enregistrée dans `relances` (`modele_ia` = `modele:<scénario>`). Tant qu'elle n'a été ni copiée ni ouverte dans Gmail, changer de modèle ou de ton réécrit le même brouillon. Le texte reste modifiable avant envoi.
 - **Ouvrir dans Gmail** : ouvre un nouveau message Gmail pré-rempli (destinataire = email du prospect, objet, corps) dans un nouvel onglet, via l'URL de rédaction de Gmail (`mail.google.com/mail/?view=cm`) : aucune connexion Google, aucun OAuth, aucune API. LeadPilot n'envoie rien : le message part quand l'utilisateur clique sur « Envoyer » dans Gmail. « Copier le message » reste disponible pour tout autre client mail. Ouvrir ou copier horodate la relance (`copiee_le`) ; l'interface parle alors de relance « copiée ou ouverte », jamais « envoyée ».
+
+## Envoi par e-mail (Brevo)
+
+En plus de Gmail, une relance peut être envoyée depuis LeadPilot via l'API transactionnelle officielle de Brevo (`POST https://api.brevo.com/v3/smtp/email`, clé dans l'en-tête `api-key`).
+
+- **Explicite** : bouton « Envoyer par e-mail », aperçu (destinataire, expéditeur, adresse de réponse, objet, texte exact) puis « Confirmer l'envoi ». Aucun envoi automatique.
+- **Route serveur** `POST /api/relances/envoyer` (`src/app/api/relances/envoyer/route.ts`) : vérifie l'origine de la requête, la session, la configuration, que la relance et le prospect appartiennent au compte (RLS + filtre explicite), l'opposition à la prospection, l'adresse du destinataire, que le texte est identique à l'aperçu, la limite de 30 envois par heure et par compte, et que l'expéditeur est **déclaré et actif dans Brevo** (`GET /v3/senders`, jamais supposé). La relance est ensuite réservée de façon atomique (`envoi_statut = 'en_cours'`) : un double clic ou deux onglets ne peuvent pas l'envoyer deux fois.
+- **Après l'envoi** : `envoi_statut = 'envoyee'`, date, adresse et identifiant Brevo (`brevo_message_id`) enregistrés ; le message n'est plus modifiable et le dossier passe en « Relancé ». En cas d'échec, `envoi_statut = 'echec'` avec un message sans détail technique ni clé ; on peut réessayer.
+- **Expéditeur** : `BREVO_SENDER_NAME <BREVO_SENDER_EMAIL>` ; les réponses vont à l'adresse du compte LeadPilot (`replyTo`).
+- **Prospection** : chaque e-mail se termine par une mention permettant de s'opposer (« répondez STOP »). Une opposition enregistrée sur la fiche (`prospects.opposition_prospection_le`) bloque tout contact depuis LeadPilot, Gmail compris, et passe le dossier en « Ignoré ».
+- Variables (serveur uniquement) : `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`. Sans elles, le bouton reste désactivé.
+- Migration requise : `supabase/migrations/20261009120000_envoi_email_brevo.sql` (colonnes ajoutées, aucune donnée modifiée).
+- RGPD : l'adresse, le nom du contact et le message sont transmis à Brevo pour l'envoi (sous-traitant à mentionner dans la politique de confidentialité).
 
 Pour essayer l'application sans fichier : se connecter une fois, remplacer l'adresse dans `supabase/demo-data.sql` puis l'exécuter dans le SQL Editor.
 

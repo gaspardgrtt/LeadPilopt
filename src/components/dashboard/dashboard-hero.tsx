@@ -175,7 +175,7 @@ export function DashboardHero({
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-hero-muted">Relances copiées ou ouvertes (7 j)</dt>
+              <dt className="text-hero-muted">Relances copiées ou envoyées (7 j)</dt>
               <dd className="font-semibold tabular-nums">{formatInteger(weekly.copied)}</dd>
             </div>
           </dl>
