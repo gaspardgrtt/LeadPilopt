@@ -3,35 +3,56 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { FIRST_RUN_PATH, HOME_PATH, LOGIN_PATH, safeRedirectPath } from "@/lib/auth/routes";
+import { linkErrorFromCode, type LinkError } from "@/lib/auth/link-errors";
 
 const OTP_TYPES: EmailOtpType[] = ["email", "magiclink", "signup", "invite", "email_change"];
 
 /**
- * Atterrissage du lien magique.
- * - `token_hash` + `type` : modèles d'email LeadPilot (supabase/templates), fonctionne même si
- *   le lien est ouvert dans un autre navigateur que celui de la demande ;
- * - `code` : flux PKCE du modèle d'email par défaut de Supabase.
+ * Atterrissage du lien magique. Une requête n'utilise qu'une seule méthode, choisie d'après les
+ * paramètres du lien :
+ * - `code` (+ `sb_flow_id`) : flux PKCE du modèle d'email par défaut de Supabase, celui utilisé
+ *   aujourd'hui. Supabase a déjà vérifié le lien et redirige ici avec un code, échangé contre une
+ *   session grâce au « code verifier » posé en cookie par le navigateur qui a demandé le lien.
+ *   `sb_flow_id` désigne le verifier de cette demande précise (un nouveau lien n'invalide plus
+ *   les précédents) ;
+ * - `token_hash` + `type` : modèles d'email LeadPilot (supabase/templates), utilisables une fois un
+ *   SMTP personnalisé configuré ; fonctionne depuis n'importe quel navigateur.
+ * - `error` / `error_code` : Supabase a refusé le lien avant de rediriger (expiré, déjà ouvert).
+ * Chaque échec renvoie vers /connexion avec sa cause précise, journalisée sans secret.
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const tokenHash = searchParams.get("token_hash");
-  const type = searchParams.get("type") as EmailOtpType | null;
-  const code = searchParams.get("code");
   const next = safeRedirectPath(searchParams.get("suivant"));
-
   const supabase = await createClient();
-  let error: unknown = null;
 
-  if (tokenHash && type && OTP_TYPES.includes(type)) {
-    ({ error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash }));
-  } else if (code) {
-    ({ error } = await supabase.auth.exchangeCodeForSession(code));
-  } else {
-    error = new Error("Lien incomplet");
+  async function fail(reason: LinkError, details: { method: string; code: string | null }) {
+    console.warn("[auth] lien de connexion refusé", { ...details, reason });
+    // Lien déjà consommé alors qu'une session est ouverte (double clic, messagerie qui ouvre le
+    // lien deux fois) : inutile d'afficher une erreur, l'utilisateur est connecté.
+    const { data } = await supabase.auth.getClaims();
+    if (data?.claims?.sub) return NextResponse.redirect(new URL(next ?? HOME_PATH, request.url));
+    return NextResponse.redirect(new URL(`${LOGIN_PATH}?erreur=${reason}`, request.url));
   }
 
-  if (error) {
-    return NextResponse.redirect(new URL(`${LOGIN_PATH}?erreur=lien-invalide`, request.url));
+  const supabaseError = searchParams.get("error_code") ?? searchParams.get("error");
+  if (supabaseError) {
+    return fail(linkErrorFromCode(searchParams.get("error_code")), { method: "supabase", code: supabaseError });
+  }
+
+  const tokenHash = searchParams.get("token_hash");
+  const code = searchParams.get("code");
+
+  if (tokenHash) {
+    const type = searchParams.get("type") as EmailOtpType | null;
+    if (!type || !OTP_TYPES.includes(type)) return fail("lien-invalide", { method: "token_hash", code: "type_invalide" });
+    const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
+    if (error) return fail(linkErrorFromCode(error.code), { method: "token_hash", code: error.code ?? null });
+  } else if (code) {
+    const flowId = searchParams.get("sb_flow_id");
+    const { error } = await supabase.auth.exchangeCodeForSession(code, flowId ? { flowId } : undefined);
+    if (error) return fail(linkErrorFromCode(error.code), { method: "pkce", code: error.code ?? null });
+  } else {
+    return fail("lien-invalide", { method: "aucune", code: "parametres_absents" });
   }
 
   if (next) return NextResponse.redirect(new URL(next, request.url));

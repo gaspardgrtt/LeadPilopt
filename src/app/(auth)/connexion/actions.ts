@@ -27,7 +27,8 @@ export async function requestMagicLink(_previous: MagicLinkState, formData: Form
   const redirectTo = new URL("/auth/confirm", getSiteUrl());
   if (next) redirectTo.searchParams.set("suivant", next);
 
-  const supabase = await createClient();
+  // Un verifier PKCE par demande : l'email reçu reste valable même si l'utilisateur en redemande un.
+  const supabase = await createClient({ pkceFlowPerRequest: true });
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: { shouldCreateUser: true, emailRedirectTo: redirectTo.toString() },

@@ -15,11 +15,11 @@ const RESEND_DELAY_SECONDS = 30;
 type LoginFormProps = {
   /** Destination après connexion, transmise par le middleware. */
   next?: string;
-  /** Erreur renvoyée par /auth/confirm (lien expiré ou déjà utilisé). */
-  linkError?: boolean;
+  /** Message d'échec renvoyé par /auth/confirm (lien expiré, autre navigateur…), ou null. */
+  linkError?: string | null;
 };
 
-export function LoginForm({ next, linkError = false }: LoginFormProps) {
+export function LoginForm({ next, linkError = null }: LoginFormProps) {
   const [state, formAction, pending] = React.useActionState<MagicLinkState, FormData>(requestMagicLink, {
     status: "idle",
   });
@@ -47,7 +47,7 @@ export function LoginForm({ next, linkError = false }: LoginFormProps) {
       {(linkError || formError) && (
         <p role="alert" className="flex items-start gap-2 rounded-md bg-danger-soft px-3.5 py-2.5 text-dense text-danger">
           <CircleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-          {formError ?? "Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau ci-dessous."}
+          {formError ?? linkError}
         </p>
       )}
       <Field label={label} htmlFor={`email-${mode}`} hint={hint} error={fieldError}>
@@ -126,6 +126,9 @@ function SentState({ email, next, formAction, pending, onChangeEmail }: SentStat
         Lien envoyé à <span className="font-medium text-foreground">{email}</span>
       </p>
       <p className="mt-0.5 text-dense text-foreground-tertiary">Valable 15 minutes</p>
+      <p className="mt-3 rounded-md bg-surface-tinted px-3 py-2 text-dense text-foreground-secondary">
+        Ouvrez le lien sur cet appareil, dans ce navigateur : c&apos;est lui qui finalise la connexion.
+      </p>
       <form
         action={(formData) => {
           setSecondsLeft(RESEND_DELAY_SECONDS);
