@@ -1,0 +1,313 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Design system LeadPilot — source unique des jetons visuels.
+ * Valeurs relevées sur la maquette de référence (Maquette.png).
+ * Les composants n'utilisent jamais de couleur en dur : uniquement ces jetons
+ * (via les classes Tailwind générées par @theme ci-dessous).
+ * V1 : thème clair uniquement, barre latérale sombre.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Neutres */
+  --background: #f6f7fb; /* fond de l'application */
+  --background-top: #fafbff; /* haut du dégradé de fond */
+  --surface: #ffffff; /* cartes, tableaux, champs */
+  --surface-subtle: #f7f8fa; /* en-têtes de tableau, survol de ligne */
+  --surface-tinted: #f5f7fc; /* encadrés d'information, zone de notes */
+  --border: #e8ebf2; /* bordures de cartes, séparateurs */
+  --border-strong: #e1e4ec; /* bordures de champs et boutons secondaires */
+  --foreground: #0f1222; /* titres, valeurs */
+  --foreground-secondary: #525c75; /* descriptions, libellés */
+  --foreground-tertiary: #8d95a8; /* placeholders, aides */
+
+  /* Accent */
+  --primary: #5d64f4;
+  --primary-hover: #4c53e6;
+  --primary-light: #8b90f8; /* second ton du logo */
+  --accent-violet: #8b5cf6; /* second ton des dégradés « IA » */
+  --accent-blue: #3b82f6; /* troisième ton de la bordure lumineuse */
+  --primary-soft: #f0f1fe; /* boutons doux, sélection, bloc IA */
+  --primary-muted: #dfe3fd; /* avatars, tuiles d'icône */
+  --primary-foreground: #ffffff;
+
+  /* Sémantique : statuts, score, tuiles KPI */
+  --success: #158a4f;
+  --success-soft: #e4f7ed;
+  --warning: #c9500c;
+  --warning-soft: #fef1e3;
+  --danger: #c8402e;
+  --danger-soft: #fdeeea;
+  --info: #2c58f8;
+  --info-soft: #eaf0fe;
+  --violet: #5b3df5;
+  --violet-soft: #ede8fe;
+  --sparkle: #a258f2; /* icône « généré par l'IA » */
+
+  /* Anneaux de score (5 paliers, du meilleur au plus faible). Gamme validée avec le script
+     dataviz (bande de luminosité, écart en vision normale ≥ 15) ; le chiffre au centre sert de
+     second encodage pour les paires proches en daltonisme et le contraste < 3:1 du vert clair et
+     de l'orange sur blanc. */
+  --score-excellent: #147a46;
+  --score-good: #46b473;
+  --score-medium: #efa02c;
+  --score-low: #d4580c;
+  --score-critical: #b8104e;
+
+  /* Barre latérale */
+  --sidebar: #141b26;
+  --sidebar-active: rgb(255 255 255 / 0.07);
+  --sidebar-hover: rgb(255 255 255 / 0.04);
+  --sidebar-foreground: #cfd4dc;
+  --sidebar-foreground-active: #ffffff;
+  --sidebar-muted: #9aa3b0;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+
+  /* Bandeau « hero » du dashboard */
+  --hero: #0e1424;
+  --hero-foreground: #ffffff;
+  --hero-muted: #a8b0c4;
+
+  /* Alias attendus par les composants shadcn/ui */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--surface-subtle);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-subtle);
+  --muted-foreground: var(--foreground-secondary);
+  --accent: var(--surface-subtle);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--danger);
+  --input: var(--border-strong);
+  --ring: var(--primary);
+
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  /* Couleurs */
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-tinted: var(--surface-tinted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-muted: var(--primary-muted);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-violet: var(--violet);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-blue: var(--accent-blue);
+  --color-violet-soft: var(--violet-soft);
+  --color-sparkle: var(--sparkle);
+  --color-score-excellent: var(--score-excellent);
+  --color-score-good: var(--score-good);
+  --color-score-medium: var(--score-medium);
+  --color-score-low: var(--score-low);
+  --color-score-critical: var(--score-critical);
+  --color-hero: var(--hero);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-hero-muted: var(--hero-muted);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-foreground-active: var(--sidebar-foreground-active);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Typographie */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-display: 1.75rem; /* 28 / 36 — accroche de la page de connexion */
+  --text-display--line-height: 2.25rem;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.025em;
+  --text-kpi: 2rem; /* 32 / 40 — chiffres des cartes KPI */
+  --text-kpi--line-height: 2.5rem;
+  --text-kpi--font-weight: 700;
+  --text-kpi--letter-spacing: -0.03em;
+  --text-title: 1.625rem; /* 26 / 34 — titre de page */
+  --text-title--line-height: 2.125rem;
+  --text-title--font-weight: 700;
+  --text-title--letter-spacing: -0.025em;
+  --text-section: 1.0625rem; /* 17 / 24 — titres de cartes */
+  --text-section--line-height: 1.5rem;
+  --text-section--font-weight: 600;
+  --text-section--letter-spacing: -0.01em;
+  --text-body: 0.875rem; /* 14 / 20 — texte courant, cellules, boutons */
+  --text-body--line-height: 1.25rem;
+  --text-dense: 0.8125rem; /* 13 / 20 — en-têtes de tableau, métadonnées */
+  --text-dense--line-height: 1.25rem;
+  --text-caption: 0.75rem; /* 12 / 16 — badges, aides */
+  --text-caption--line-height: 1rem;
+  --text-caption--font-weight: 500;
+
+  /* Rayons : 6 badges · 8 contrôles · 12 cartes · 16 panneaux */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+
+  /* Élévation */
+  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px -4px rgb(16 24 40 / 0.06);
+  --shadow-elevated: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 40px -12px rgb(16 24 40 / 0.14);
+  --shadow-primary: 0 1px 2px rgb(93 100 244 / 0.3), 0 4px 14px -4px rgb(93 100 244 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.18);
+  --shadow-glow: 0 0 0 1px rgb(93 100 244 / 0.12), 0 8px 32px -8px rgb(93 100 244 / 0.35);
+  --shadow-hero: 0 30px 80px -30px rgb(14 20 36 / 0.55);
+  --shadow-ai: 0 8px 28px -10px rgb(93 100 244 / 0.65);
+  --shadow-ai-hover: 0 10px 36px -8px rgb(139 92 246 / 0.7);
+  --shadow-overlay: 0 12px 32px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
+
+  /* Gabarits */
+  --spacing-sidebar: 224px;
+  --spacing-row: 52px;
+  --container-content: 1200px;
+
+  /* Mouvement */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-body text-foreground font-sans;
+    font-feature-settings: "cv11", "ss01";
+    /* Fond premium : deux halos très diffus (indigo en haut à droite, violet en haut à gauche)
+       sur un dégradé vertical, fixés pour rester immobiles au défilement. */
+    background-image:
+      radial-gradient(1100px 560px at 85% -12%, rgb(93 100 244 / 0.16), transparent 62%),
+      radial-gradient(820px 480px at 12% -8%, rgb(139 92 246 / 0.10), transparent 60%),
+      linear-gradient(180deg, var(--background-top) 0%, var(--background) 420px);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    background: var(--primary-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility glass {
+  /* Verre dépoli léger : lisible sur le fond clair, avec un liseré lumineux en haut. */
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+@utility text-ai-gradient {
+  background-image: linear-gradient(90deg, var(--primary) 0%, var(--accent-violet) 50%, var(--primary) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@keyframes moving-border {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes ai-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes aurora-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(4%, -6%, 0) scale(1.08);
+  }
+}
+
+@keyframes aurora-drift-reverse {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  50% {
+    transform: translate3d(-6%, 5%, 0) scale(0.95);
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@theme inline {
+  --animate-moving-border: moving-border 3.2s linear infinite;
+  --animate-ai-shimmer: ai-shimmer 2.4s linear infinite;
+  --animate-caret: caret-blink 1s step-end infinite;
+  --animate-aurora: aurora-drift 18s ease-in-out infinite;
+  --animate-aurora-reverse: aurora-drift-reverse 22s ease-in-out infinite;
+}
+
+@layer utilities {
+  /* Libellé en majuscules (usage ponctuel) */
+  .text-overline {
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+}
