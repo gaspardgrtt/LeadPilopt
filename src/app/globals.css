@@ -6,10 +6,15 @@
  * Valeurs relevées sur la maquette de référence (Maquette.png).
  * Les composants n'utilisent jamais de couleur en dur : uniquement ces jetons
  * (via les classes Tailwind générées par @theme ci-dessous).
- * V1 : thème clair uniquement, barre latérale sombre.
+ * Deux thèmes : clair (:root) et sombre (classe .dark sur <html>, posée avant l'affichage par le
+ * script du layout racine). La barre latérale et le bandeau du dashboard restent sombres dans les
+ * deux thèmes. La classe .light rétablit la palette claire dans un élément (illustrations).
  */
 
-:root {
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root,
+.light {
   color-scheme: light;
 
   /* Neutres */
@@ -22,7 +27,7 @@
   --border-strong: #e1e4ec; /* bordures de champs et boutons secondaires */
   --foreground: #0f1222; /* titres, valeurs */
   --foreground-secondary: #525c75; /* descriptions, libellés */
-  --foreground-tertiary: #6b7489; /* placeholders, aides (4,7:1 sur blanc) */
+  --foreground-tertiary: #667085; /* placeholders, aides (≥ 4,5:1 sur les surfaces claires) */
 
   /* Accent */
   --primary: #5d64f4;
@@ -33,6 +38,11 @@
   --primary-soft: #f0f1fe; /* boutons doux, sélection, bloc IA */
   --primary-muted: #dfe3fd; /* avatars, tuiles d'icône */
   --primary-foreground: #ffffff;
+  /* Fonds pleins sous un texte blanc : identiques dans les deux thèmes (contraste 4,6:1). */
+  --primary-solid: #5d64f4;
+  --primary-solid-hover: #4c53e6;
+  --success-solid: #137544;
+  --danger-solid: #b23322;
 
   /* Sémantique : statuts, score, tuiles KPI */
   --success: #137544;
@@ -71,6 +81,19 @@
   --hero-foreground: #ffffff;
   --hero-muted: #b8bfd1;
 
+  /* Textes clairs posés sur les surfaces toujours sombres (hero, infobulles) */
+  --on-dark-positive: #a8ecc5;
+  --on-dark-negative: #ffb4a8;
+  --tooltip: #0f1222;
+
+  /* Élévation et verre dépoli (surchargés en thème sombre) */
+  --elev-xs: 0 1px 2px rgb(16 24 40 / 0.04);
+  --elev-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px -4px rgb(16 24 40 / 0.06);
+  --elev-elevated: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 40px -12px rgb(16 24 40 / 0.14);
+  --elev-overlay: 0 12px 32px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
+  --glass-bg: rgb(255 255 255 / 0.72);
+  --glass-highlight: rgb(255 255 255 / 0.9);
+
   /* Alias attendus par les composants shadcn/ui */
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -89,6 +112,58 @@
   --radius: 0.75rem;
 }
 
+/* Thème sombre : mêmes rôles, valeurs relevées pour un contraste AA (texte ≥ 4,5:1 sur les
+   surfaces) en gardant l'identité violette. Vérifié par src/lib/theme/contrast.test.ts. */
+.dark {
+  color-scheme: dark;
+
+  --background: #0a0e17;
+  --background-top: #0e1322;
+  --surface: #121826;
+  --surface-subtle: #161d2d;
+  --surface-tinted: #151b2b;
+  --border: #232c40;
+  --border-strong: #2d3850;
+  --foreground: #eef1f8;
+  --foreground-secondary: #a9b2c6;
+  --foreground-tertiary: #8d96ab;
+
+  --primary: #7278f7;
+  --primary-hover: #a9adfc;
+  --primary-light: #9da2fb;
+  --primary-soft: #1c2049;
+  --primary-muted: #2a2f66;
+
+  --success: #4ad08a;
+  --success-soft: #0f2a1d;
+  --warning: #f5a35a;
+  --warning-soft: #2e1d0e;
+  --danger: #f4887a;
+  --danger-soft: #33171a;
+  --info: #86a8ff;
+  --info-soft: #152242;
+  --violet: #ab95ff;
+  --violet-soft: #231b47;
+  --sparkle: #c08bff;
+
+  --score-excellent: #3ccf86;
+  --score-good: #9be2b6;
+  --score-medium: #f2b04a;
+  --score-low: #f07b3a;
+  --score-critical: #f0607f;
+
+  --sidebar: #0c111c;
+  --hero: #111833;
+  --tooltip: #2a3349;
+
+  --elev-xs: 0 1px 2px rgb(0 0 0 / 0.3);
+  --elev-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px -4px rgb(0 0 0 / 0.35);
+  --elev-elevated: 0 2px 4px rgb(0 0 0 / 0.3), 0 16px 40px -12px rgb(0 0 0 / 0.55);
+  --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+  --glass-bg: rgb(18 24 38 / 0.78);
+  --glass-highlight: rgb(255 255 255 / 0.05);
+}
+
 @theme inline {
   /* Couleurs */
   --color-background: var(--background);
@@ -105,6 +180,13 @@
   --color-primary-soft: var(--primary-soft);
   --color-primary-muted: var(--primary-muted);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-success-solid: var(--success-solid);
+  --color-danger-solid: var(--danger-solid);
+  --color-on-dark-positive: var(--on-dark-positive);
+  --color-on-dark-negative: var(--on-dark-negative);
+  --color-tooltip: var(--tooltip);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);
@@ -182,15 +264,15 @@
   --radius-xl: 1rem;
 
   /* Élévation */
-  --shadow-xs: 0 1px 2px rgb(16 24 40 / 0.04);
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px -4px rgb(16 24 40 / 0.06);
-  --shadow-elevated: 0 2px 4px rgb(16 24 40 / 0.04), 0 16px 40px -12px rgb(16 24 40 / 0.14);
+  --shadow-xs: var(--elev-xs);
+  --shadow-card: var(--elev-card);
+  --shadow-elevated: var(--elev-elevated);
   --shadow-primary: 0 1px 2px rgb(93 100 244 / 0.3), 0 4px 14px -4px rgb(93 100 244 / 0.45), inset 0 1px 0 rgb(255 255 255 / 0.18);
   --shadow-glow: 0 0 0 1px rgb(93 100 244 / 0.12), 0 8px 32px -8px rgb(93 100 244 / 0.35);
   --shadow-hero: 0 30px 80px -30px rgb(14 20 36 / 0.55);
   --shadow-ai: 0 8px 28px -10px rgb(93 100 244 / 0.65);
   --shadow-ai-hover: 0 10px 36px -8px rgb(139 92 246 / 0.7);
-  --shadow-overlay: 0 12px 32px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
+  --shadow-overlay: var(--elev-overlay);
 
   /* Gabarits */
   --spacing-sidebar: 248px;
@@ -240,11 +322,11 @@
 }
 
 @utility glass {
-  /* Verre dépoli léger : lisible sur le fond clair, avec un liseré lumineux en haut. */
-  background-color: rgb(255 255 255 / 0.72);
+  /* Verre dépoli léger, avec un liseré lumineux en haut (valeurs selon le thème). */
+  background-color: var(--glass-bg);
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  box-shadow: var(--shadow-card), inset 0 1px 0 rgb(255 255 255 / 0.9);
+  box-shadow: var(--elev-card), inset 0 1px 0 var(--glass-highlight);
 }
 
 @utility text-ai-gradient {

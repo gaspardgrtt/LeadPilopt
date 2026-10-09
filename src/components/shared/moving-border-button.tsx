@@ -34,11 +34,11 @@ export function MovingBorderButton({ className, children, size = "md", disabled,
             "conic-gradient(from 0deg, transparent 0deg, var(--accent-blue) 50deg, #ffffff 90deg, var(--accent-violet) 130deg, var(--primary-light) 180deg, transparent 230deg, transparent 360deg)",
         }}
       />
-      <span aria-hidden className="absolute inset-0 -z-30 bg-primary/70" />
+      <span aria-hidden className="absolute inset-0 -z-30 bg-primary-solid/70" />
       <span
         className={cn(
-          "relative inline-flex h-full w-full items-center justify-center gap-2 rounded-[8px] bg-primary px-4 [&_svg]:size-4 [&_svg]:shrink-0",
-          "bg-[image:linear-gradient(135deg,rgb(255_255_255/0.18),rgb(255_255_255/0)_45%),linear-gradient(90deg,var(--primary),var(--accent-violet))]",
+          "relative inline-flex h-full w-full items-center justify-center gap-2 rounded-[8px] bg-primary-solid px-4 [&_svg]:size-4 [&_svg]:shrink-0",
+          "bg-[image:linear-gradient(135deg,rgb(255_255_255/0.18),rgb(255_255_255/0)_45%),linear-gradient(90deg,var(--primary-solid),var(--accent-violet))]",
           "transition-[filter] duration-200 group-hover:brightness-110"
         )}
       >

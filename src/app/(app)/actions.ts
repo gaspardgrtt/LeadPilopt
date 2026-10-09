@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
@@ -8,6 +9,15 @@ import { DEAL_STAGES, FOLLOWUP_TONES, isProspectStatus, type DealStage, type Fol
 import { isFollowupScenario, renderFollowup, scenarioTag, type FollowupScenario } from "@/lib/followups/templates";
 import { isUuid } from "@/lib/data/prospects";
 import { formatPersonName } from "@/lib/user/display-name";
+import {
+  LANGUE_COOKIE,
+  PREFERENCE_COOKIE_MAX_AGE,
+  THEME_COOKIE,
+  isLangue,
+  isTheme,
+  type Langue,
+  type Theme,
+} from "@/lib/preferences/preferences";
 import { getBrevoSenderIdentity } from "@/lib/brevo/config";
 import { buildEmailContent, checkEmailContent, isValidEmail } from "@/lib/followups/email";
 
@@ -327,6 +337,45 @@ export async function setProspectOpposition(prospectId: string, opposed: boolean
     return { ok: false, message: GENERIC_ERROR };
   }
   if (!data.length) return { ok: false, message: "Ce prospect n'existe plus." };
+  revalidateProspectViews();
+  return { ok: true };
+}
+
+/**
+ * Enregistre les préférences d'affichage du compte (page Paramètres) et les recopie dans les
+ * cookies de l'appareil, lus avant le premier affichage. Seules les valeurs connues sont acceptées.
+ */
+export async function updatePreferences(input: { theme?: unknown; langue?: unknown }): Promise<ActionResult> {
+  const values: { theme?: Theme; langue?: Langue } = {};
+  if (input?.theme !== undefined) {
+    if (!isTheme(input.theme)) return { ok: false, message: "Thème inconnu." };
+    values.theme = input.theme;
+  }
+  if (input?.langue !== undefined) {
+    if (!isLangue(input.langue)) return { ok: false, message: "Langue inconnue." };
+    values.langue = input.langue;
+  }
+  if (!values.theme && !values.langue) return { ok: false, message: "Requête invalide." };
+
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("utilisateurs").update(values).eq("id", user.id).select("id");
+  if (error) {
+    console.error("[préférences] enregistrement impossible", { code: error.code });
+    return { ok: false, message: GENERIC_ERROR };
+  }
+  if (!data.length) return { ok: false, message: GENERIC_ERROR };
+
+  const cookieStore = await cookies();
+  const cookieOptions = {
+    path: "/",
+    maxAge: PREFERENCE_COOKIE_MAX_AGE,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    httpOnly: false,
+  };
+  if (values.theme) cookieStore.set(THEME_COOKIE, values.theme, cookieOptions);
+  if (values.langue) cookieStore.set(LANGUE_COOKIE, values.langue, cookieOptions);
   revalidateProspectViews();
   return { ok: true };
 }

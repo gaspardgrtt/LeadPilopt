@@ -29,7 +29,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "!w-[360px] !rounded-lg !shadow-overlay !text-body !font-sans",
           title: "!font-medium",
           description: "!text-foreground-secondary",
-          actionButton: "!bg-primary !text-primary-foreground !rounded-md !font-medium",
+          actionButton: "!bg-primary-solid !text-primary-foreground !rounded-md !font-medium",
         },
       }}
       style={

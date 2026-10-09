@@ -173,6 +173,8 @@ export type Database = {
           panier_moyen_eur: number | null
           seuil_inactivite_jours: number
           signature: string | null
+          theme: string
+          langue: string
           taux_commission: number | null
           ton_relance: Database["public"]["Enums"]["ton_relance"]
         }
@@ -186,6 +188,8 @@ export type Database = {
           panier_moyen_eur?: number | null
           seuil_inactivite_jours?: number
           signature?: string | null
+          theme?: string
+          langue?: string
           taux_commission?: number | null
           ton_relance?: Database["public"]["Enums"]["ton_relance"]
         }
@@ -199,6 +203,8 @@ export type Database = {
           panier_moyen_eur?: number | null
           seuil_inactivite_jours?: number
           signature?: string | null
+          theme?: string
+          langue?: string
           taux_commission?: number | null
           ton_relance?: Database["public"]["Enums"]["ton_relance"]
         }

@@ -63,7 +63,7 @@ export function ScoreRing({ score, explanation, className }: ScoreRingProps) {
               <span
                 className={cn(
                   "font-semibold tabular-nums",
-                  factor.points > 0 ? "text-success-soft" : factor.points < 0 ? "text-danger-soft" : "text-white/60"
+                  factor.points > 0 ? "text-on-dark-positive" : factor.points < 0 ? "text-on-dark-negative" : "text-white/60"
                 )}
               >
                 {factor.points > 0 ? `+${factor.points}` : factor.points < 0 ? `−${Math.abs(factor.points)}` : "0"} pts

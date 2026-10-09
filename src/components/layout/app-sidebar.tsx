@@ -145,7 +145,7 @@ function NavGroups({
   );
 }
 
-type SidebarUser = {
+export type SidebarUser = {
   name: string;
   email: string;
   /** Aucun nom enregistré : le nom affiché vient de l'adresse email. */
@@ -153,7 +153,7 @@ type SidebarUser = {
 };
 
 /** Saisie du prénom et du nom affichés (colonne `utilisateurs.nom`). */
-function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; open: boolean; onOpenChange: (open: boolean) => void }) {
+export function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
   const [firstName, lastName] = user.needsName ? ["", ""] : [user.name.split(" ")[0], user.name.split(" ").slice(1).join(" ")];
   const [error, setError] = React.useState<string | null>(null);

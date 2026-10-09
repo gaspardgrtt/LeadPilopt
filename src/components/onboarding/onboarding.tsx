@@ -65,7 +65,7 @@ function StepList({ steps, tone }: { steps: Step[]; tone: "light" | "card" }) {
             <span
               className={cn(
                 "flex size-8 shrink-0 items-center justify-center rounded-full",
-                step.done ? "bg-success text-white" : active ? "bg-primary text-primary-foreground" : "bg-surface-subtle text-foreground-tertiary ring-1 ring-border"
+                step.done ? "bg-success-solid text-white" : active ? "bg-primary-solid text-primary-foreground" : "bg-surface-subtle text-foreground-tertiary ring-1 ring-border"
               )}
               aria-hidden
             >

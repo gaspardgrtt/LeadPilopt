@@ -26,7 +26,7 @@ export function AuthVisual() {
       />
 
       <div aria-hidden className="relative mx-auto mb-auto mt-16 w-full max-w-[440px] rotate-[-2deg]">
-        <div className="rounded-lg border border-white/10 bg-white p-5 shadow-overlay">
+        <div className="light rounded-lg border border-white/10 bg-surface p-5 shadow-overlay">
           <div className="flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-lg bg-warning-soft text-warning">
               <ClockIcon className="size-5" strokeWidth={1.9} />

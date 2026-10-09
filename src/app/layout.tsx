@@ -4,6 +4,8 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { MotionProvider } from "@/components/motion/motion";
+import { SystemThemeListener } from "@/components/theme/theme-sync";
+import { THEME_INIT_SCRIPT } from "@/lib/preferences/preferences";
 import "./globals.css";
 
 const inter = Inter({
@@ -33,8 +35,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    // suppressHydrationWarning : la classe `dark` est posée par le script avant l'hydratation.
+    <html lang="fr" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Thème appliqué avant le premier affichage (cookie + réglage du système) : pas de flash. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body>
+        <SystemThemeListener />
         <MotionProvider>
           <TooltipProvider>{children}</TooltipProvider>
         </MotionProvider>

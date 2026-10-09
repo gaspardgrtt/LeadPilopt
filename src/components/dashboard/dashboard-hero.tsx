@@ -86,8 +86,8 @@ export function DashboardHero({
                 <span aria-hidden className="size-1 rounded-full bg-hero-muted/70" />
                 <span className="inline-flex items-center gap-1.5">
                   <span aria-hidden className="relative flex size-1.5">
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-success-soft opacity-60 motion-reduce:animate-none" />
-                    <span className="relative inline-flex size-1.5 rounded-full bg-success-soft" />
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-on-dark-positive opacity-60 motion-reduce:animate-none" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-on-dark-positive" />
                   </span>
                   Analyse à jour · {importLabel}
                 </span>
@@ -171,7 +171,7 @@ export function DashboardHero({
             <div className="flex items-baseline justify-between gap-4">
               <dt className="text-hero-muted">Gagné après une relance</dt>
               <dd>
-                <CountUp value={caRecupere} format={formatEuro} className="font-semibold text-success-soft tabular-nums" />
+                <CountUp value={caRecupere} format={formatEuro} className="font-semibold text-on-dark-positive tabular-nums" />
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4">

@@ -172,6 +172,20 @@ ok("B ne peut pas lever l'opposition d'un prospect de A", (await db.query("updat
 await as(A);
 await db.query("update public.prospects set opposition_prospection_le = null where id = $1", [pidA]);
 
+// --- Préférences d'affichage (migration preferences_theme_langue)
+await as(A);
+ok("préférences par défaut : thème système, français", (await db.query("select theme, langue from public.utilisateurs where id = $1", [A])).rows[0].theme === "systeme");
+await db.query("update public.utilisateurs set theme = 'sombre', langue = 'en' where id = $1", [A]);
+const prefsA = (await db.query("select theme, langue from public.utilisateurs where id = $1", [A])).rows[0];
+ok("A enregistre ses préférences (sombre, anglais)", prefsA.theme === "sombre" && prefsA.langue === "en");
+await expectError("thème inconnu refusé", "update public.utilisateurs set theme = 'violet' where id = $1", [A]);
+await expectError("langue inconnue refusée", "update public.utilisateurs set langue = 'de' where id = $1", [A]);
+await as(B);
+ok("B ne peut pas modifier les préférences de A", (await db.query("update public.utilisateurs set theme = 'clair' where id = $1", [A])).affectedRows === 0);
+ok("B ne lit pas les préférences de A", (await db.query("select theme from public.utilisateurs where id = $1", [A])).rows.length === 0);
+await as(A);
+await db.query("update public.utilisateurs set theme = 'systeme', langue = 'fr' where id = $1", [A]);
+
 // --- Kanban « Mes dossiers » : changement d'étape puis recalcul (action updateProspectStage)
 await as(A);
 await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact)

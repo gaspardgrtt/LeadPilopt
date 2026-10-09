@@ -56,7 +56,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Importer mes données", href: "/import", icon: DownloadIcon, goKey: "I" },
       { label: "Intégrations CRM", icon: PlugIcon, soon: true, hidden: true },
-      { label: "Paramètres", icon: SettingsIcon, soon: true },
+      { label: "Paramètres", href: "/parametres", icon: SettingsIcon, goKey: "S" },
     ],
   },
 ];

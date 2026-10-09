@@ -101,7 +101,7 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
                   className={cn(
                     "inline-flex h-9 items-center gap-1.5 rounded-lg px-3.5 text-dense font-semibold transition-colors duration-200",
                     first
-                      ? "bg-primary text-primary-foreground shadow-ai group-hover:bg-primary-hover"
+                      ? "bg-primary-solid text-primary-foreground shadow-ai group-hover:bg-primary-solid-hover"
                       : "bg-primary-soft text-primary-hover ring-1 ring-primary/15 group-hover:bg-primary-muted/70"
                   )}
                 >

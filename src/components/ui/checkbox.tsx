@@ -12,7 +12,7 @@ function Checkbox({ className, ...props }: React.ComponentProps<typeof CheckboxP
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-foreground-tertiary/60 bg-surface transition-colors duration-150 outline-none hover:border-foreground-tertiary focus-visible:ring-[3px] focus-visible:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-45 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground",
+        "peer flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-foreground-tertiary/60 bg-surface transition-colors duration-150 outline-none hover:border-foreground-tertiary focus-visible:ring-[3px] focus-visible:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-45 data-[state=checked]:border-primary-solid data-[state=checked]:bg-primary-solid data-[state=checked]:text-primary-foreground data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground",
         className
       )}
       {...props}

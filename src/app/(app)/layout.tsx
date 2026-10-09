@@ -3,6 +3,8 @@ import { CommandMenuProvider } from "@/components/layout/command-menu";
 import { requireUser } from "@/lib/auth/session";
 import { getProfil, getProspectCounts } from "@/lib/data/prospects";
 import { displayName } from "@/lib/user/display-name";
+import { ThemeFromAccount } from "@/components/theme/theme-sync";
+import { parseTheme } from "@/lib/preferences/preferences";
 
 // Toutes les pages connectées dépendent de la session : jamais de pré-rendu statique.
 export const dynamic = "force-dynamic";
@@ -18,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <CommandMenuProvider>
+      <ThemeFromAccount theme={parseTheme(profil?.theme)} />
       <div className="flex min-h-dvh bg-background">
         <AppSidebar user={{ name: name.full, email, needsName: name.isFallback }} counts={sidebarCounts} />
         <div className="flex min-w-0 flex-1 flex-col">
