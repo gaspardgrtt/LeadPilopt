@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { CircleAlertIcon, FileSpreadsheetIcon, UploadIcon, XIcon } from "lucide-react";
+import { useT } from "@/i18n/client";
 
 import { cn } from "@/lib/utils";
 import { formatInteger } from "@/lib/format";
@@ -30,6 +31,7 @@ export function UploadZone({
   accept = ".csv,text/csv",
   className,
 }: UploadZoneProps) {
+  const t = useT();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = React.useState(false);
 
@@ -53,7 +55,7 @@ export function UploadZone({
         {onRemove && (
           <Button variant="ghost" size="sm" onClick={onRemove}>
             <XIcon />
-            Retirer
+            {t.import.upload.remove}
           </Button>
         )}
       </div>
@@ -91,10 +93,10 @@ export function UploadZone({
           <UploadIcon className={cn("size-6", loading && "animate-pulse")} strokeWidth={2.25} aria-hidden />
         </span>
         <span className="text-[16px] leading-6 font-semibold text-foreground">
-          {loading ? "Lecture du fichier…" : "Glissez votre fichier CSV ici"}
+          {loading ? t.import.upload.reading : t.import.upload.drop}
         </span>
         <span className="mt-1 text-body text-foreground-secondary">
-          ou cliquez pour sélectionner un fichier
+          {t.import.upload.orClick}
         </span>
         <Button
           type="button"
@@ -106,10 +108,10 @@ export function UploadZone({
             inputRef.current?.click();
           }}
         >
-          Choisir un fichier
+          {t.import.upload.choose}
         </Button>
         <span className="mt-4 text-caption font-normal text-foreground-tertiary">
-          Format accepté : CSV (max 10&nbsp;Mo, 5&nbsp;000 lignes)
+          {t.import.upload.accepted}
         </span>
       </div>
       <input

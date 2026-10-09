@@ -3,8 +3,9 @@
 import { BanIcon, CheckIcon, CircleCheckIcon, FileTextIcon, MailIcon, PenLineIcon, RotateCcwIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { FOLLOWUP_TONES, TONE_LABELS, type FollowupTone } from "@/lib/prospects";
-import { FOLLOWUP_SCENARIOS, SCENARIO_LABELS, type FollowupScenario } from "@/lib/followups/templates";
+import { FOLLOWUP_TONES, type FollowupTone } from "@/lib/prospects";
+import { FOLLOWUP_SCENARIOS, type FollowupScenario } from "@/lib/followups/templates";
+import { useLocale, useT } from "@/i18n/client";
 import { Button } from "@/components/ui/button";
 import { GmailIcon } from "@/components/brand/gmail-icon";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,7 +51,8 @@ type FollowupBlockProps = {
   className?: string;
 };
 
-const sentDate = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const sentDateFormat = (locale: string) =>
+  new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 
 export function FollowupBlock({
   state,
@@ -74,6 +76,8 @@ export function FollowupBlock({
   blockedReason,
   className,
 }: FollowupBlockProps) {
+  const t = useT();
+  const locale = useLocale();
   const generating = state === "generating";
   // Message figé une fois envoyé ; contact impossible en cas d'opposition.
   const locked = Boolean(sentInfo);
@@ -81,7 +85,7 @@ export function FollowupBlock({
 
   return (
     <section
-      aria-label="Relance"
+      aria-label={t.followup.section}
       className={cn(
         "relative isolate rounded-xl border border-primary/15 bg-surface-tinted/80 p-4 shadow-[0_12px_40px_-20px_var(--primary)] backdrop-blur-sm sm:p-5",
         className
@@ -96,21 +100,21 @@ export function FollowupBlock({
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent-violet shadow-[0_4px_14px_-4px_var(--accent-violet)]">
             <PenLineIcon className="size-4 text-white" strokeWidth={2} aria-hidden />
           </span>
-          {generating ? "Préparation…" : "Relance à personnaliser"}
-          {state === "edited" && <span className="text-caption font-normal text-foreground-tertiary">· modifiée</span>}
+          {generating ? t.followup.preparing : t.followup.toCustomize}
+          {state === "edited" && <span className="text-caption font-normal text-foreground-tertiary">{t.followup.edited}</span>}
         </h3>
         <div className="flex flex-wrap items-center gap-1.5">
           {onScenarioChange && scenario && (
             <Select value={scenario} onValueChange={(value) => onScenarioChange(value as FollowupScenario)} disabled={generating || locked}>
-              <SelectTrigger size="sm" className="w-[220px] max-w-full" aria-label="Modèle de relance">
-                <span className="text-foreground-tertiary">Modèle</span>
+              <SelectTrigger size="sm" className="w-[220px] max-w-full" aria-label={t.followup.templateAria}>
+                <span className="text-foreground-tertiary">{t.followup.template}</span>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
                 {FOLLOWUP_SCENARIOS.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {SCENARIO_LABELS[value]}
-                    {value === recommendedScenario && <span className="text-caption text-success"> · conseillé</span>}
+                    {t.enums.scenario[value]}
+                    {value === recommendedScenario && <span className="text-caption text-success">{t.followup.recommended}</span>}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -118,20 +122,20 @@ export function FollowupBlock({
           )}
           {onToneChange ? (
             <Select value={tone} onValueChange={(value) => onToneChange(value as FollowupTone)} disabled={generating || locked}>
-              <SelectTrigger size="sm" className="w-[150px]" aria-label="Ton de la relance">
-                <span className="text-foreground-tertiary">Ton</span>
+              <SelectTrigger size="sm" className="w-[150px]" aria-label={t.followup.toneAria}>
+                <span className="text-foreground-tertiary">{t.followup.tone}</span>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
                 {FOLLOWUP_TONES.map((value) => (
                   <SelectItem key={value} value={value}>
-                    {TONE_LABELS[value]}
+                    {t.enums.tone[value]}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           ) : (
-            <span className="text-dense text-foreground-tertiary">Ton : {TONE_LABELS[tone]}</span>
+            <span className="text-dense text-foreground-tertiary">{t.followup.toneValue(t.enums.tone[tone])}</span>
           )}
           {onRegenerate && (
             <Tooltip>
@@ -141,12 +145,12 @@ export function FollowupBlock({
                   size="icon-sm"
                   onClick={onRegenerate}
                   disabled={generating || locked || state !== "edited"}
-                  aria-label="Revenir au texte du modèle"
+                  aria-label={t.followup.revert}
                 >
                   <RotateCcwIcon />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Revenir au texte du modèle</TooltipContent>
+              <TooltipContent>{t.followup.revert}</TooltipContent>
             </Tooltip>
           )}
         </div>
@@ -162,19 +166,18 @@ export function FollowupBlock({
         <p role="status" className="mb-3 flex items-start gap-2 rounded-lg bg-success-soft px-3.5 py-2.5 text-dense text-success">
           <CircleCheckIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            Envoyée par e-mail le {sentDate.format(new Date(sentInfo.at))} à <span className="font-semibold">{sentInfo.to}</span>. Le
-            message n&apos;est plus modifiable.
+            {t.followup.sent(sentDateFormat(locale).format(new Date(sentInfo.at)), sentInfo.to)}
           </span>
         </p>
       )}
       <div className="relative rounded-lg border bg-surface shadow-xs" aria-busy={generating || undefined}>
         {state === "error" ? (
           <div className="flex flex-col items-start gap-3 p-4">
-            <p className="text-body text-foreground">La relance n&apos;a pas pu être préparée.</p>
+            <p className="text-body text-foreground">{t.followup.failed}</p>
             {onRegenerate && (
               <Button variant="secondary" size="sm" onClick={onRegenerate}>
                 <RotateCcwIcon />
-                Réessayer
+                {t.common.retry}
               </Button>
             )}
           </div>
@@ -189,7 +192,7 @@ export function FollowupBlock({
         ) : (
           <>
             <label className="flex items-center gap-2 border-b px-4">
-              <span className="text-dense text-foreground-tertiary">Objet</span>
+              <span className="text-dense text-foreground-tertiary">{t.followup.subject}</span>
               <input
                 value={subject}
                 onChange={(event) => onSubjectChange?.(event.target.value)}
@@ -200,7 +203,7 @@ export function FollowupBlock({
               />
             </label>
             <textarea
-              aria-label="Message"
+              aria-label={t.followup.message}
               value={body}
               onChange={(event) => onBodyChange?.(event.target.value)}
               onBlur={onEditEnd}
@@ -220,7 +223,7 @@ export function FollowupBlock({
                 <span className="flex size-5 items-center justify-center rounded-[5px] bg-white shadow-xs">
                   <GmailIcon className="size-3.5" />
                 </span>
-                Ouvrir dans Gmail
+                {t.followup.openGmail}
               </a>
             </Button>
           ) : (
@@ -231,11 +234,11 @@ export function FollowupBlock({
                     <span className="flex size-5 items-center justify-center rounded-[5px] bg-white shadow-xs">
                       <GmailIcon className="size-3.5" />
                     </span>
-                    Ouvrir dans Gmail
+                    {t.followup.openGmail}
                   </Button>
                 </span>
               </TooltipTrigger>
-              {!gmailHref && !contactDisabled && !locked && <TooltipContent>Aucun email pour ce prospect : copiez le message.</TooltipContent>}
+              {!gmailHref && !contactDisabled && !locked && <TooltipContent>{t.followup.noEmailCopy}</TooltipContent>}
             </Tooltip>
           ))}
         {sendEmail && (
@@ -248,7 +251,7 @@ export function FollowupBlock({
                   disabled={generating || state === "error" || contactDisabled || locked || Boolean(sendEmail.disabledReason)}
                 >
                   <MailIcon />
-                  Envoyer par e-mail
+                  {t.followup.sendEmail}
                 </Button>
               </span>
             </TooltipTrigger>
@@ -261,20 +264,20 @@ export function FollowupBlock({
           disabled={generating || state === "error" || contactDisabled}
         >
           <FileTextIcon />
-          Copier le message
+          {t.followup.copy}
         </Button>
         {onMarkFollowedUp && (
           <Button variant="secondary" onClick={onMarkFollowedUp} disabled={generating}>
             <CheckIcon />
-            Marquer comme relancé
+            {t.followup.markDone}
           </Button>
         )}
       </footer>
       {gmailHref !== undefined && !locked && !contactDisabled && (
         <p className="mt-3 text-caption text-foreground-tertiary">
           {sendEmail
-            ? "« Ouvrir dans Gmail » prépare un brouillon que vous envoyez vous-même. « Envoyer par e-mail » envoie le message depuis LeadPilot, après aperçu et confirmation."
-            : "Gmail s'ouvre avec un brouillon prérempli : relisez-le et envoyez-le depuis Gmail. LeadPilot n'envoie rien à votre place."}
+            ? t.followup.hintWithEmail
+            : t.followup.hintGmailOnly}
         </p>
       )}
     </section>

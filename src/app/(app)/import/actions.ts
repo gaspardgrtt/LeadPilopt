@@ -1,5 +1,6 @@
 "use server";
 
+import { getI18n } from "@/i18n/server";
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
@@ -16,27 +17,27 @@ import { FOLLOWUP_TONES, type FollowupTone } from "@/lib/prospects";
 
 export type ImportActionResult<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
-const GENERIC_ERROR = "L'import a échoué. Réessayez : les lignes déjà enregistrées ne seront pas dupliquées.";
-
 export async function startImport(replace: boolean): Promise<ImportActionResult<{ importId: string }>> {
+  const { t } = await getI18n();
   const user = await requireUser();
   if (replace) {
     const supabase = await createClient();
     const { error } = await supabase.from("prospects").delete().eq("utilisateur_id", user.id);
     if (error) {
       console.error("[import] suppression des données impossible", { code: error.code });
-      return { ok: false, message: "Les données existantes n'ont pas pu être supprimées. Rien n'a été importé." };
+      return { ok: false, message: t.import.errors.deleteFailed };
     }
   }
   return { ok: true, importId: crypto.randomUUID() };
 }
 
 export async function importBatch(importId: string, rows: unknown[]): Promise<ImportActionResult<{ count: number }>> {
+  const { t } = await getI18n();
   if (!isUuid(importId) || !Array.isArray(rows) || rows.length === 0 || rows.length > BATCH_SIZE) {
-    return { ok: false, message: "Requête invalide." };
+    return { ok: false, message: t.actions.invalidRequest };
   }
   const validated = rows.map(validateImportRow);
-  if (validated.some((row) => row === null)) return { ok: false, message: "Certaines lignes sont invalides." };
+  if (validated.some((row) => row === null)) return { ok: false, message: t.import.errors.invalidRows };
 
   const user = await requireUser();
   const now = new Date().toISOString();
@@ -49,7 +50,7 @@ export async function importBatch(importId: string, rows: unknown[]): Promise<Im
     .upsert(payload, { onConflict: "utilisateur_id,contact_email,entreprise" });
   if (error) {
     console.error("[import] enregistrement d'un lot impossible", { code: error.code, message: error.message });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.import.errors.generic };
   }
   return { ok: true, count: payload.length };
 }
@@ -66,21 +67,22 @@ export type ImportSettings = {
 export type ImportSummary = { nbProspects: number; nbOublies: number; caRecuperable: number };
 
 export async function finishImport(settings: ImportSettings): Promise<ImportActionResult<{ summary: ImportSummary }>> {
+  const { t } = await getI18n();
   const seuil = Number(settings?.seuil);
   const panier = settings?.panier === null ? null : Number(settings?.panier);
   const signature = typeof settings?.signature === "string" ? settings.signature.trim() : "";
   if (!Number.isInteger(seuil) || seuil < 1 || seuil > 365) {
-    return { ok: false, message: "Le seuil d'oubli doit être compris entre 1 et 365 jours." };
+    return { ok: false, message: t.import.errors.threshold };
   }
   if (panier !== null && (!Number.isFinite(panier) || panier < 0 || panier > 1e10)) {
-    return { ok: false, message: "Le panier moyen doit être un montant positif." };
+    return { ok: false, message: t.import.errors.basket };
   }
   const commission = settings?.commission === null || settings?.commission === undefined ? null : Number(settings.commission);
   if (commission !== null && (!Number.isFinite(commission) || commission <= 0 || commission > 100)) {
-    return { ok: false, message: "Le taux de commission doit être compris entre 0,01 et 100 %." };
+    return { ok: false, message: t.import.errors.commission };
   }
-  if (!(FOLLOWUP_TONES as readonly string[]).includes(settings?.ton)) return { ok: false, message: "Ton invalide." };
-  if (signature.length > 1000) return { ok: false, message: "La signature ne doit pas dépasser 1 000 caractères." };
+  if (!(FOLLOWUP_TONES as readonly string[]).includes(settings?.ton)) return { ok: false, message: t.import.errors.tone };
+  if (signature.length > 1000) return { ok: false, message: t.import.errors.signature };
 
   const user = await requireUser();
   const supabase = await createClient();
@@ -97,17 +99,17 @@ export async function finishImport(settings: ImportSettings): Promise<ImportActi
     .eq("id", user.id);
   if (settingsError) {
     console.error("[import] enregistrement des réglages impossible", { code: settingsError.code });
-    return { ok: false, message: "Les réglages n'ont pas pu être enregistrés." };
+    return { ok: false, message: t.import.errors.settings };
   }
 
   const { error: computeError } = await supabase.rpc("recalculer_prospects");
   if (computeError) {
     console.error("[import] calcul impossible", { code: computeError.code });
-    return { ok: false, message: "Le calcul des prospects a échoué. Relancez l'analyse." };
+    return { ok: false, message: t.import.errors.compute };
   }
 
   const { data, error } = await supabase.rpc("tableau_de_bord").single();
-  if (error) return { ok: false, message: "Import terminé, mais le résumé n'a pas pu être chargé." };
+  if (error) return { ok: false, message: t.import.errors.summary };
 
   revalidatePath("/", "layout");
   return {

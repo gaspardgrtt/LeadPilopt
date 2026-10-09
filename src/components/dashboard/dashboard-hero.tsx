@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRightIcon, DownloadIcon, SparklesIcon } from "lucide-react";
 
 import { MovingBorderButton } from "@/components/shared/moving-border-button";
-import { formatEuro, formatInteger } from "@/lib/format";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 
 import { CountUp } from "./count-up";
 import { ProgressRing } from "./progress-ring";
@@ -46,6 +46,9 @@ export function DashboardHero({
   startHref,
 }: DashboardHeroProps) {
   const router = useRouter();
+  const t = useT();
+  const locale = useLocale();
+  const format = useFormat();
   const forgottenShare = nbAffairesOuvertes > 0 ? nbOublies / nbAffairesOuvertes : 0;
 
   return (
@@ -89,7 +92,7 @@ export function DashboardHero({
                     <span className="absolute inline-flex size-full animate-ping rounded-full bg-on-dark-positive opacity-60 motion-reduce:animate-none" />
                     <span className="relative inline-flex size-1.5 rounded-full bg-on-dark-positive" />
                   </span>
-                  Analyse à jour · {importLabel}
+                  {t.dashboard.upToDate(importLabel)}
                 </span>
               </>
             )}
@@ -102,7 +105,7 @@ export function DashboardHero({
             transition={{ duration: 0.6, ease: EASE, delay: 0.15 }}
             className="mt-3 text-[19px] leading-7 font-semibold tracking-[-0.015em] text-hero-foreground sm:text-[21px]"
           >
-            {firstName ? `Bonjour ${firstName},` : "Bonjour,"} <span className="text-hero-muted">voici l&apos;argent qui dort dans vos affaires.</span>
+            {t.dashboard.greeting(firstName)} <span className="text-hero-muted">{t.dashboard.greetingRest}</span>
           </motion.h1>
 
           <motion.div
@@ -113,13 +116,13 @@ export function DashboardHero({
           >
             <CountUp
               value={caRecuperable}
-              format={formatEuro}
+              format={format.euro}
               className="block bg-gradient-to-br from-white via-white to-primary-light bg-clip-text text-[46px] leading-[1.05] font-bold tracking-[-0.045em] text-transparent tabular-nums sm:text-[60px]"
             />
             <p className="mt-1.5 text-[15px] leading-6 text-hero-muted">
-              récupérables sur{" "}
+              {t.dashboard.recoverableOn}{" "}
               <span className="font-semibold text-hero-foreground">
-                {formatInteger(nbOublies)} affaire{nbOublies > 1 ? "s" : ""} oubliée{nbOublies > 1 ? "s" : ""}
+                {t.dashboard.forgottenDeals(format.integer(nbOublies), nbOublies)}
               </span>
             </p>
           </motion.div>
@@ -132,17 +135,17 @@ export function DashboardHero({
           >
             <MovingBorderButton size="lg" className="w-full sm:w-auto" onClick={() => router.push(startHref)}>
               <SparklesIcon />
-              Démarrer la session de relance
+              {t.dashboard.startSession}
               <ArrowRightIcon className="transition-transform duration-200 group-hover:translate-x-0.5" />
             </MovingBorderButton>
             <Link
               href="/import"
-              title="Nouvel import"
+              title={t.dashboard.newImport}
               className="inline-flex h-11 items-center justify-center gap-2 rounded-[10px] px-4 text-body font-medium text-hero-foreground ring-1 ring-white/25 transition-colors duration-200 outline-none hover:bg-white/[0.08] focus-visible:ring-[3px] focus-visible:ring-primary-light/50 lg:max-xl:px-3"
             >
               <DownloadIcon className="size-4" aria-hidden />
               {/* Entre 1024 et 1280 px, l'icône seule laisse les deux actions sur une ligne. */}
-              <span className="lg:max-xl:sr-only">Nouvel import</span>
+              <span className="lg:max-xl:sr-only">{t.dashboard.newImport}</span>
             </Link>
           </motion.div>
         </div>
@@ -156,27 +159,28 @@ export function DashboardHero({
           <div className="flex items-center gap-5">
             <ProgressRing value={forgottenShare} size={104} stroke={9} gradientId="hero-ring">
               <span className="text-[24px] leading-7 font-bold tracking-[-0.03em] tabular-nums">
-                {Math.round(forgottenShare * 100)}&nbsp;%
+                {Math.round(forgottenShare * 100)}
+                {locale === "en" ? "%" : "\u00a0%"}
               </span>
             </ProgressRing>
             <div className="min-w-0">
-              <p className="text-body font-semibold">de vos affaires en cours sont oubliées</p>
+              <p className="text-body font-semibold">{t.dashboard.forgottenShare}</p>
               <p className="mt-1 text-dense text-hero-muted">
-                {formatInteger(nbOublies)} sur {formatInteger(nbAffairesOuvertes)}, sans contact depuis plus de {threshold} jours.
+                {t.dashboard.forgottenDetail(format.integer(nbOublies), format.integer(nbAffairesOuvertes), threshold)}
               </p>
             </div>
           </div>
 
           <dl className="mt-5 flex flex-col gap-2.5 border-t border-white/10 pt-4 text-dense">
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-hero-muted">Gagné après une relance</dt>
+              <dt className="text-hero-muted">{t.dashboard.wonAfterFollowup}</dt>
               <dd>
-                <CountUp value={caRecupere} format={formatEuro} className="font-semibold text-on-dark-positive tabular-nums" />
+                <CountUp value={caRecupere} format={format.euro} className="font-semibold text-on-dark-positive tabular-nums" />
               </dd>
             </div>
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-hero-muted">Relances copiées ou envoyées (7 j)</dt>
-              <dd className="font-semibold tabular-nums">{formatInteger(weekly.copied)}</dd>
+              <dt className="text-hero-muted">{t.dashboard.followupsWeek}</dt>
+              <dd className="font-semibold tabular-nums">{format.integer(weekly.copied)}</dd>
             </div>
           </dl>
         </motion.div>

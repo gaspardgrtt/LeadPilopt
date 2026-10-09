@@ -1,3 +1,5 @@
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 import type { DealStage } from "@/lib/prospects";
 
 // Lecture tolérante des valeurs d'un export CRM. Partagé entre le navigateur (aperçu) et le
@@ -27,13 +29,13 @@ export function cleanText(value: string | undefined | null, maxLength: number): 
  * Montants : « 15 000 € », « 15000,50 », « 15.000 », « $15,000.00 », « 1’250 ».
  * Une virgule ou un point suivi d'exactement 3 chiffres est lu comme un séparateur de milliers.
  */
-export function parseAmount(raw: string | undefined | null): Parsed<number> {
+export function parseAmount(raw: string | undefined | null, locale: Langue = "fr"): Parsed<number> {
   const text = (raw ?? "").trim();
   if (!text) return { value: null };
-  if (/^-|\(.*\)$/.test(text)) return { value: null, error: `Montant négatif ignoré : « ${text} »` };
+  if (/^-|\(.*\)$/.test(text)) return { value: null, error: getMessages(locale).import.errors.negativeAmount(text) };
 
   let digits = text.replace(/[^\d,.]/g, "");
-  if (!/\d/.test(digits)) return { value: null, error: `Montant illisible : « ${text} »` };
+  if (!/\d/.test(digits)) return { value: null, error: getMessages(locale).import.errors.badAmount(text) };
 
   const lastComma = digits.lastIndexOf(",");
   const lastDot = digits.lastIndexOf(".");
@@ -49,7 +51,7 @@ export function parseAmount(raw: string | undefined | null): Parsed<number> {
   }
 
   const value = Number(digits);
-  if (!Number.isFinite(value) || value > 1e10) return { value: null, error: `Montant illisible : « ${text} »` };
+  if (!Number.isFinite(value) || value > 1e10) return { value: null, error: getMessages(locale).import.errors.badAmount(text) };
   return { value: Math.round(value * 100) / 100 };
 }
 
@@ -82,10 +84,10 @@ function isoDate(year: number, month: number, day: number): string | null {
  * « Sep 4, 2026 », numéro de série Excel. JJ/MM par défaut ; MM/JJ si le jour ne peut pas être le
  * premier nombre (« 09/24/2026 »).
  */
-export function parseDate(raw: string | undefined | null): Parsed<string> {
+export function parseDate(raw: string | undefined | null, locale: Langue = "fr"): Parsed<string> {
   const text = (raw ?? "").trim();
   if (!text) return { value: null };
-  const invalid = { value: null, error: `Date illisible : « ${text} »` };
+  const invalid = { value: null, error: getMessages(locale).import.errors.badDate(text) };
 
   let match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[T\s].*)?$/);
   if (match) {
@@ -147,18 +149,18 @@ export function parseStage(raw: string | undefined | null): { etape: DealStage |
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-export function parseEmail(raw: string | undefined | null): Parsed<string> {
+export function parseEmail(raw: string | undefined | null, locale: Langue = "fr"): Parsed<string> {
   const text = (raw ?? "").trim().toLowerCase();
   if (!text) return { value: null };
-  if (text.length > 320 || !EMAIL_PATTERN.test(text)) return { value: null, error: `Email invalide ignoré : « ${text} »` };
+  if (text.length > 320 || !EMAIL_PATTERN.test(text)) return { value: null, error: getMessages(locale).import.errors.badEmail(text) };
   return { value: text };
 }
 
-export function parsePhone(raw: string | undefined | null): Parsed<string> {
+export function parsePhone(raw: string | undefined | null, locale: Langue = "fr"): Parsed<string> {
   const text = cleanText(raw, 60);
   if (!text) return { value: null };
   if (!/\d{4,}/.test(text.replace(/[\s.\-()]/g, "")) || text.length > 40) {
-    return { value: null, error: `Téléphone invalide ignoré : « ${text} »` };
+    return { value: null, error: getMessages(locale).import.errors.badPhone(text) };
   }
   return { value: text };
 }

@@ -1,13 +1,16 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import {
+  LANGUE_COOKIE,
   THEME_COOKIE,
   applyTheme,
   parseTheme,
   preferenceCookie,
   readCookie,
+  type Langue,
   type Theme,
 } from "@/lib/preferences/preferences";
 
@@ -36,5 +39,20 @@ export function ThemeFromAccount({ theme }: { theme: Theme }) {
     }
     applyTheme(theme);
   }, [theme]);
+  return null;
+}
+
+/**
+ * Aligne la langue de l'appareil sur celle du compte (nouvel appareil, reconnexion) puis recharge
+ * l'affichage dans la bonne langue.
+ */
+export function LocaleFromAccount({ langue }: { langue: Langue }) {
+  const router = useRouter();
+  React.useEffect(() => {
+    if (readCookie(document.cookie, LANGUE_COOKIE) !== langue) {
+      document.cookie = preferenceCookie(LANGUE_COOKIE, langue, window.location.protocol === "https:");
+      router.refresh();
+    }
+  }, [langue, router]);
   return null;
 }

@@ -13,8 +13,9 @@ import { detectFollowupContext, scenarioFromTag } from "@/lib/followups/template
 import { getBrevoSenderIdentity } from "@/lib/brevo/config";
 import type { ProspectDetail } from "@/lib/data/prospects";
 import type { ScoreExplanation } from "@/lib/scoring/score";
-import { daysSince, formatDate, formatEuro } from "@/lib/format";
-import { STAGE_LABELS, type FollowupTone } from "@/lib/prospects";
+import { daysSince } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
+import type { FollowupTone } from "@/lib/prospects";
 
 import { FollowupPanel, OppositionControl, ProspectStatusControl } from "./prospect-actions";
 
@@ -38,17 +39,18 @@ type ProspectViewProps = {
   defaultTone: FollowupTone;
 };
 
-export function ProspectView({ detail, explanation, defaultTone }: ProspectViewProps) {
+export async function ProspectView({ detail, explanation, defaultTone }: ProspectViewProps) {
+  const { t, locale, format } = await getI18n();
   const { prospect, relance, position } = detail;
   const silence = prospect.date_dernier_contact ? daysSince(prospect.date_dernier_contact) : null;
-  const stage = prospect.etape ? STAGE_LABELS[prospect.etape] : null;
+  const stage = prospect.etape ? t.enums.stage[prospect.etape] : null;
   const shownScore = explanation.kind === "scored" ? explanation.score : prospect.score;
-  const followupContext = detectFollowupContext(prospect);
+  const followupContext = detectFollowupContext(prospect, undefined, locale);
 
   return (
     <>
       <PageHeader
-        breadcrumb={[{ label: "Prospects", href: "/prospects" }, { label: prospect.entreprise }]}
+        breadcrumb={[{ label: t.sheet.prospects, href: "/prospects" }, { label: prospect.entreprise }]}
         backHref="/prospects"
         className="mb-5 sm:mb-8"
       />
@@ -72,13 +74,13 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
           {position && (
             <div className="flex w-full items-center justify-between gap-2.5 border-t pt-3 sm:w-auto sm:justify-start sm:border-0 sm:pt-0">
               <span className="mr-1 text-dense text-foreground-tertiary tabular-nums">
-                Dossier {position.index} sur {position.total}
+                {t.sheet.position(position.index, position.total)}
               </span>
               <span className="flex items-center gap-2">
-                <NavButton id={position.previousId} label="Prospect précédent">
+                <NavButton id={position.previousId} label={t.sheet.previous}>
                   <ArrowUpIcon />
                 </NavButton>
-                <NavButton id={position.nextId} label="Prospect suivant">
+                <NavButton id={position.nextId} label={t.sheet.next}>
                   <ArrowDownIcon />
                 </NavButton>
               </span>
@@ -123,11 +125,11 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.45fr_1fr]">
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-[15px]">Informations</CardTitle>
+              <CardTitle className="text-[15px]">{t.sheet.information}</CardTitle>
             </CardHeader>
             <CardContent className="pt-2 sm:pt-3">
               <dl className="divide-y divide-border/60 sm:divide-y-0">
-                <InfoRow label="Email">
+                <InfoRow label={t.sheet.email}>
                   {prospect.contact_email ? (
                     <a href={`mailto:${prospect.contact_email}`} className="hover:underline">
                       {prospect.contact_email}
@@ -136,13 +138,13 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
                     DASH
                   )}
                 </InfoRow>
-                <InfoRow label="Contact">{prospect.contact_nom ?? DASH}</InfoRow>
-                <InfoRow label="Montant">
-                  {prospect.montant_eur === null ? "Montant estimé (panier moyen)" : formatEuro(prospect.montant_eur)}
+                <InfoRow label={t.sheet.contact}>{prospect.contact_nom ?? DASH}</InfoRow>
+                <InfoRow label={t.sheet.amount}>
+                  {prospect.montant_eur === null ? t.sheet.estimatedAmount : format.euro(prospect.montant_eur)}
                 </InfoRow>
-                <InfoRow label="Étape">{stage ?? prospect.etape_brute ?? DASH}</InfoRow>
+                <InfoRow label={t.sheet.stage}>{stage ?? prospect.etape_brute ?? DASH}</InfoRow>
                 {prospect.notes && (
-                  <InfoRow label="Notes">
+                  <InfoRow label={t.sheet.notes}>
                     <span className="block rounded-md bg-surface-tinted px-3.5 py-2.5 whitespace-pre-line text-foreground-secondary">
                       {prospect.notes}
                     </span>
@@ -153,27 +155,27 @@ export function ProspectView({ detail, explanation, defaultTone }: ProspectViewP
           </Card>
           <Card className="shadow-none">
             <CardHeader>
-              <CardTitle className="text-[15px]">Statut</CardTitle>
+              <CardTitle className="text-[15px]">{t.sheet.status}</CardTitle>
             </CardHeader>
             <CardContent className="pt-2 sm:pt-3">
               <dl className="divide-y divide-border/60 sm:divide-y-0">
-                <InfoRow label="Dernier contact">
+                <InfoRow label={t.sheet.lastContact}>
                   {prospect.date_dernier_contact ? (
                     <span className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-start sm:gap-1.5">
-                      {formatDate(prospect.date_dernier_contact)}
+                      {format.date(prospect.date_dernier_contact)}
                       {silence !== null && <SilenceDays days={silence} relative />}
                     </span>
                   ) : (
                     DASH
                   )}
                 </InfoRow>
-                <InfoRow label="Argent récupérable">
+                <InfoRow label={t.sheet.recoverable}>
                   <span className="font-semibold">
-                    {prospect.ca_recuperable_eur === null ? DASH : formatEuro(prospect.ca_recuperable_eur)}
+                    {prospect.ca_recuperable_eur === null ? DASH : format.euro(prospect.ca_recuperable_eur)}
                   </span>
                 </InfoRow>
-                <InfoRow label="Score">{shownScore === null ? DASH : <ScoreGauge score={shownScore} />}</InfoRow>
-                <InfoRow label="Prospection">
+                <InfoRow label={t.sheet.score}>{shownScore === null ? DASH : <ScoreGauge score={shownScore} />}</InfoRow>
+                <InfoRow label={t.sheet.prospecting}>
                   <OppositionControl prospectId={prospect.id} opposition={prospect.opposition_prospection_le ?? null} />
                 </InfoRow>
               </dl>

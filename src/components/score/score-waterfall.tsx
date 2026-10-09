@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useT } from "@/i18n/client";
 
 import { cn } from "@/lib/utils";
 import type { ScoreFactor } from "@/lib/scoring/score";
@@ -18,21 +19,16 @@ const BAR_COLORS: Record<Step["kind"], string> = {
   total: "bg-gradient-to-r from-primary to-accent-violet",
 };
 
-const FACTOR_SHORT: Record<ScoreFactor["key"], string> = {
-  montant: "Montant",
-  etape: "Étape",
-  silence: "Silence",
-};
-
 const signed = (points: number) => (points > 0 ? `+${points}` : points < 0 ? `−${Math.abs(points)}` : "0");
 
 export function ScoreWaterfall({ base, factors, score }: { base: number; factors: ScoreFactor[]; score: number }) {
-  const steps: Step[] = [{ label: "Prospect moyen", start: 0, end: base, kind: "base", value: String(base) }];
+  const t = useT();
+  const steps: Step[] = [{ label: t.sheet.averageProspect, start: 0, end: base, kind: "base", value: String(base) }];
   let running = base;
   for (const factor of factors) {
     const next = running + factor.points;
     steps.push({
-      label: FACTOR_SHORT[factor.key],
+      label: t.sheet.factor[factor.key],
       start: running,
       end: next,
       kind: factor.points >= 0 ? "up" : "down",
@@ -40,7 +36,7 @@ export function ScoreWaterfall({ base, factors, score }: { base: number; factors
     });
     running = next;
   }
-  steps.push({ label: "Score", start: 0, end: score, kind: "total", value: String(score) });
+  steps.push({ label: t.sheet.score, start: 0, end: score, kind: "total", value: String(score) });
 
   const low = Math.min(0, ...steps.map((step) => Math.min(step.start, step.end)));
   const high = Math.max(100, ...steps.map((step) => Math.max(step.start, step.end)));
@@ -86,10 +82,10 @@ export function ScoreWaterfall({ base, factors, score }: { base: number; factors
         })}
       </div>
       <figcaption className="mt-3 text-caption font-normal text-foreground-tertiary">
-        Le trait vertical marque 100, votre meilleure opportunité.
+        {t.sheet.waterfallNote}
       </figcaption>
       <table className="sr-only">
-        <caption>Décomposition du score en points</caption>
+        <caption>{t.sheet.waterfallCaption}</caption>
         <tbody>
           {steps.map((step, index) => (
             <tr key={`${step.label}-row-${index}`}>

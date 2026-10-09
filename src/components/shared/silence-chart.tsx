@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { formatEuro, formatInteger } from "@/lib/format";
+import { useFormat, useT } from "@/i18n/client";
 
 // Barres horizontales, une seule série (CA récupérable par ancienneté) : une teinte, pas de
 // légende (le titre de la carte nomme la série), barres de 20 px à extrémité arrondie et base
@@ -15,6 +15,10 @@ import { formatEuro, formatInteger } from "@/lib/format";
 type Bucket = { label: string; total: number; count: number };
 
 export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
+  const t = useT();
+  const format = useFormat();
+  // Les tranches arrivent toujours dans le même ordre : libellé traduit par position.
+  const label = (index: number, fallback: string) => t.dashboard.silenceBuckets[index] ?? fallback;
   const max = Math.max(...buckets.map((bucket) => bucket.total), 1);
 
   return (
@@ -28,7 +32,7 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
               <TooltipTrigger asChild>
                 <div className="group grid cursor-default grid-cols-[96px_1fr] items-center gap-3 rounded-md py-0.5 sm:grid-cols-[112px_1fr]">
                   <span className="text-dense text-foreground-secondary transition-colors group-hover:text-foreground">
-                    {bucket.label}
+                    {label(index, bucket.label)}
                   </span>
                   <span className="flex min-w-0 items-center gap-2.5">
                     <span className="relative h-5 min-w-0 flex-1">
@@ -44,15 +48,13 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
                       />
                     </span>
                     <span className="w-24 shrink-0 text-right text-dense font-semibold text-foreground tabular-nums">
-                      {formatEuro(bucket.total)}
+                      {format.euro(bucket.total)}
                     </span>
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {bucket.label} sans contact · {formatInteger(bucket.count)}{" "}
-                prospect{bucket.count > 1 ? "s" : ""} ·{" "}
-                {formatEuro(bucket.total)}
+                {t.dashboard.chartTooltip(label(index, bucket.label), format.integer(bucket.count), bucket.count, format.euro(bucket.total))}
               </TooltipContent>
             </Tooltip>
           );
@@ -62,21 +64,21 @@ export function SilenceChart({ buckets }: { buckets: Bucket[] }) {
       <div className="sr-only">
         <table>
           <caption>
-            Argent récupérable par ancienneté du dernier contact
+            {t.dashboard.chartDescription}
           </caption>
           <thead>
             <tr>
-              <th scope="col">Ancienneté</th>
-              <th scope="col">Prospects</th>
-              <th scope="col">Argent récupérable</th>
+              <th scope="col">{t.dashboard.chartAge}</th>
+              <th scope="col">{t.dashboard.chartProspects}</th>
+              <th scope="col">{t.dashboard.chartAmount}</th>
             </tr>
           </thead>
           <tbody>
-            {buckets.map((bucket) => (
+            {buckets.map((bucket, index) => (
               <tr key={bucket.label}>
-                <th scope="row">{bucket.label}</th>
+                <th scope="row">{label(index, bucket.label)}</th>
                 <td>{bucket.count}</td>
-                <td>{formatEuro(bucket.total)}</td>
+                <td>{format.euro(bucket.total)}</td>
               </tr>
             ))}
           </tbody>

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/supabase/env";
 import { safeRedirectPath } from "@/lib/auth/routes";
+import { getI18n } from "@/i18n/server";
 
 export type MagicLinkState =
   | { status: "idle" }
@@ -17,11 +18,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * existe ou non, pour ne pas révéler quels emails ont un compte.
  */
 export async function requestMagicLink(_previous: MagicLinkState, formData: FormData): Promise<MagicLinkState> {
+  const { t } = await getI18n();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const next = safeRedirectPath(String(formData.get("suivant") ?? ""));
 
   if (!email || email.length > 320 || !EMAIL_PATTERN.test(email)) {
-    return { status: "error", email, field: "email", message: "Cette adresse ne semble pas valide" };
+    return { status: "error", email, field: "email", message: t.auth.invalidEmail };
   }
 
   const redirectTo = new URL("/auth/confirm", getSiteUrl());
@@ -39,11 +41,11 @@ export async function requestMagicLink(_previous: MagicLinkState, formData: Form
       return {
         status: "error",
         email,
-        message: "Trop de demandes rapprochées. Patientez une minute avant de redemander un lien.",
+        message: t.auth.tooManyRequests,
       };
     }
     console.error("[auth] envoi du lien magique impossible", { code: error.code, status: error.status });
-    return { status: "error", email, message: "L'envoi du lien a échoué. Réessayez dans un instant." };
+    return { status: "error", email, message: t.auth.sendFailed };
   }
 
   return { status: "sent", email };

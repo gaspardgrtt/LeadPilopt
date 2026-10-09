@@ -3,6 +3,9 @@
 // (GET /senders). La clé n'est transmise que dans l'en-tête `api-key`, jamais journalisée ni
 // renvoyée au navigateur. `fetchImpl` est injectable : les tests n'appellent jamais Brevo.
 
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
+
 export const BREVO_API_URL = "https://api.brevo.com/v3";
 const TIMEOUT_MS = 15_000;
 
@@ -39,17 +42,19 @@ function headers(apiKey: string): Record<string, string> {
 }
 
 /** Messages par statut HTTP, sans reprendre le texte renvoyé par Brevo. */
-export function brevoErrorMessage(status: number): string {
-  if (status === 400) return "Brevo a refusé le message : adresse ou contenu invalide.";
-  if (status === 401) return "L'envoi par e-mail est mal configuré (clé Brevo refusée). Contactez l'administrateur.";
-  if (status === 402) return "Le compte Brevo n'a plus de crédits d'envoi.";
-  if (status === 403) return "Brevo refuse l'envoi depuis ce compte ou cet expéditeur. Vérifiez l'expéditeur dans Brevo.";
-  if (status === 429) return "Trop d'envois en peu de temps. Réessayez dans une minute.";
-  return "Brevo est momentanément indisponible. Réessayez dans quelques minutes.";
+export function brevoErrorMessage(status: number, locale: Langue = "fr"): string {
+  const t = getMessages(locale).sending.brevo;
+  return status === 400 || status === 401 || status === 402 || status === 403 || status === 429 ? t[status] : t.unavailable;
 }
 
 /** Envoie un e-mail transactionnel ; renvoie l'identifiant du message attribué par Brevo. */
-export async function sendBrevoEmail(config: BrevoConfig, email: BrevoEmail, fetchImpl: typeof fetch = fetch): Promise<{ messageId: string }> {
+export async function sendBrevoEmail(
+  config: BrevoConfig,
+  email: BrevoEmail,
+  fetchImpl: typeof fetch = fetch,
+  locale: Langue = "fr"
+): Promise<{ messageId: string }> {
+  const t = getMessages(locale).sending.brevo;
   let response: Response;
   try {
     response = await fetchImpl(`${BREVO_API_URL}/smtp/email`, {
@@ -69,14 +74,14 @@ export async function sendBrevoEmail(config: BrevoConfig, email: BrevoEmail, fet
     });
   } catch {
     // Délai dépassé ou coupure réseau : la requête a pu atteindre Brevo.
-    throw new BrevoError("La connexion à Brevo a été interrompue : l'e-mail a peut-être été envoyé. Vérifiez dans Brevo avant de renvoyer.", null, true);
+    throw new BrevoError(t.interrupted, null, true);
   }
 
-  if (!response.ok) throw new BrevoError(brevoErrorMessage(response.status), response.status);
+  if (!response.ok) throw new BrevoError(brevoErrorMessage(response.status, locale), response.status);
 
   const payload = (await response.json().catch(() => null)) as { messageId?: unknown } | null;
   if (typeof payload?.messageId !== "string" || !payload.messageId) {
-    throw new BrevoError("Brevo a accepté la requête sans renvoyer d'identifiant de message. Vérifiez dans Brevo avant de renvoyer.", response.status, true);
+    throw new BrevoError(t.noMessageId, response.status, true);
   }
   return { messageId: payload.messageId.slice(0, 300) };
 }
@@ -87,7 +92,8 @@ export type SenderStatus = { ok: true } | { ok: false; message: string };
  * Vérifie que l'adresse d'expédition est un expéditeur Brevo existant et actif (validé). On ne
  * suppose jamais qu'il l'est : sans confirmation de Brevo, l'envoi est refusé.
  */
-export async function checkBrevoSender(config: BrevoConfig, fetchImpl: typeof fetch = fetch): Promise<SenderStatus> {
+export async function checkBrevoSender(config: BrevoConfig, fetchImpl: typeof fetch = fetch, locale: Langue = "fr"): Promise<SenderStatus> {
+  const t = getMessages(locale).sending.brevo;
   let response: Response;
   try {
     response = await fetchImpl(`${BREVO_API_URL}/senders`, {
@@ -97,19 +103,19 @@ export async function checkBrevoSender(config: BrevoConfig, fetchImpl: typeof fe
       cache: "no-store",
     });
   } catch {
-    return { ok: false, message: "Impossible de vérifier l'expéditeur auprès de Brevo pour le moment. Réessayez." };
+    return { ok: false, message: t.senderCheckFailed };
   }
-  if (!response.ok) return { ok: false, message: brevoErrorMessage(response.status) };
+  if (!response.ok) return { ok: false, message: brevoErrorMessage(response.status, locale) };
 
   const payload = (await response.json().catch(() => null)) as { senders?: { email?: unknown; active?: unknown }[] } | null;
   const sender = payload?.senders?.find(
     (candidate) => typeof candidate.email === "string" && candidate.email.toLowerCase() === config.senderEmail.toLowerCase()
   );
   if (!sender) {
-    return { ok: false, message: "L'adresse d'expédition n'est pas déclarée comme expéditeur dans Brevo. Ajoutez-la et validez-la dans Brevo." };
+    return { ok: false, message: t.senderUnknown };
   }
   if (sender.active !== true) {
-    return { ok: false, message: "L'expéditeur n'est pas encore validé dans Brevo. Validez-le (lien reçu par e-mail ou domaine authentifié)." };
+    return { ok: false, message: t.senderInactive };
   }
   return { ok: true };
 }

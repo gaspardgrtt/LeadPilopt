@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { FIRST_RUN_PATH, HOME_PATH, LOGIN_PATH, safeRedirectPath } from "@/lib/auth/routes";
 import { linkErrorFromCode, type LinkError } from "@/lib/auth/link-errors";
+import { LANGUE_COOKIE, PREFERENCE_COOKIE_MAX_AGE, THEME_COOKIE, isLangue, isTheme } from "@/lib/preferences/preferences";
 
 const OTP_TYPES: EmailOtpType[] = ["email", "magiclink", "signup", "invite", "email_change"];
 
@@ -55,9 +56,19 @@ export async function GET(request: NextRequest) {
     return fail("lien-invalide", { method: "aucune", code: "parametres_absents" });
   }
 
-  if (next) return NextResponse.redirect(new URL(next, request.url));
+  // Préférences du compte (thème, langue) recopiées en cookies dès la connexion : sur un nouvel
+  // appareil, la première page s'affiche directement dans la bonne langue et le bon thème.
+  const { data: preferences } = await supabase.from("utilisateurs").select("theme, langue").maybeSingle();
+  const withPreferences = (response: NextResponse) => {
+    const options = { path: "/", maxAge: PREFERENCE_COOKIE_MAX_AGE, sameSite: "lax" as const, secure: request.nextUrl.protocol === "https:" };
+    if (isTheme(preferences?.theme)) response.cookies.set(THEME_COOKIE, preferences.theme, options);
+    if (isLangue(preferences?.langue)) response.cookies.set(LANGUE_COOKIE, preferences.langue, options);
+    return response;
+  };
+
+  if (next) return withPreferences(NextResponse.redirect(new URL(next, request.url)));
 
   // Premier passage (aucun prospect) → import ; sinon tableau de bord (spéc. UX/UI E1).
   const { count } = await supabase.from("prospects").select("id", { count: "exact", head: true });
-  return NextResponse.redirect(new URL(count ? HOME_PATH : FIRST_RUN_PATH, request.url));
+  return withPreferences(NextResponse.redirect(new URL(count ? HOME_PATH : FIRST_RUN_PATH, request.url)));
 }

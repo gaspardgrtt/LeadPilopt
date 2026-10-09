@@ -1,5 +1,6 @@
 import "server-only";
 
+import type { Langue } from "@/lib/preferences/preferences";
 import { isValidEmail } from "@/lib/followups/email";
 
 import { checkBrevoSender, type BrevoConfig, type SenderStatus } from "./client";
@@ -27,9 +28,9 @@ export function getBrevoSenderIdentity(): { email: string; name: string } | null
 let verifiedUntil = 0;
 let verifiedFor = "";
 
-export async function ensureVerifiedSender(config: BrevoConfig): Promise<SenderStatus> {
+export async function ensureVerifiedSender(config: BrevoConfig, locale: Langue = "fr"): Promise<SenderStatus> {
   if (verifiedFor === config.senderEmail && Date.now() < verifiedUntil) return { ok: true };
-  const status = await checkBrevoSender(config);
+  const status = await checkBrevoSender(config, fetch, locale);
   if (status.ok) {
     verifiedFor = config.senderEmail;
     verifiedUntil = Date.now() + 10 * 60_000;

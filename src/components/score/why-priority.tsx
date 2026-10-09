@@ -1,5 +1,8 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import type { ScoreFactor } from "@/lib/scoring/score";
+import { useT } from "@/i18n/client";
 
 // « Pourquoi prioritaire ? » : les facteurs du score avec leurs points (libellés toujours alignés
 // sur le signe) et une mini-barre proportionnelle. Partagé par le brief du matin et « Mes priorités ».
@@ -7,6 +10,7 @@ import type { ScoreFactor } from "@/lib/scoring/score";
 const signed = (points: number) => (points > 0 ? `+${points}` : points < 0 ? `−${Math.abs(points)}` : "0");
 
 export function WhyPriority({ factors, className }: { factors: ScoreFactor[]; className?: string }) {
+  const t = useT();
   const maxAbs = Math.max(...factors.map((factor) => Math.abs(factor.points)), 1);
   return (
     <ul className={cn("flex flex-col gap-1.5", className)}>
@@ -19,7 +23,7 @@ export function WhyPriority({ factors, className }: { factors: ScoreFactor[]; cl
             )}
           >
             {signed(factor.points)}
-            <span className="sr-only"> points :</span>
+            <span className="sr-only">{t.workspace.pointsSr}</span>
           </span>
           <span className="truncate text-dense text-foreground-secondary">{factor.shortLabel}</span>
           <span className="h-1.5 overflow-hidden rounded-full bg-surface-subtle" aria-hidden>

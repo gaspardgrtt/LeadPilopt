@@ -2,6 +2,9 @@
 // corps, version texte et HTML, et mention d'opposition ajoutée à chaque envoi. Fonctions pures,
 // partagées par l'aperçu (navigateur) et l'envoi (serveur).
 
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
+
 export const SUBJECT_MAX = 300;
 export const BODY_MAX = 10000;
 
@@ -20,15 +23,16 @@ export function isValidEmail(value: string | null | undefined): value is string 
 export type EmailContentCheck = { ok: true; subject: string; body: string } | { ok: false; message: string };
 
 /** Objet sur une seule ligne (pas d'injection d'en-tête), corps non vide, longueurs bornées. */
-export function checkEmailContent(subject: unknown, body: unknown): EmailContentCheck {
-  if (typeof subject !== "string" || typeof body !== "string") return { ok: false, message: "Objet ou message manquant." };
+export function checkEmailContent(subject: unknown, body: unknown, locale: Langue = "fr"): EmailContentCheck {
+  const t = getMessages(locale).sending.content;
+  if (typeof subject !== "string" || typeof body !== "string") return { ok: false, message: t.missing };
   const cleanSubject = subject.trim();
   const cleanBody = body.trim();
-  if (!cleanSubject) return { ok: false, message: "Ajoutez un objet avant d'envoyer." };
-  if (/[\r\n]/.test(cleanSubject)) return { ok: false, message: "L'objet doit tenir sur une seule ligne." };
-  if (cleanSubject.length > SUBJECT_MAX) return { ok: false, message: `L'objet dépasse ${SUBJECT_MAX} caractères.` };
-  if (!cleanBody) return { ok: false, message: "Le message est vide." };
-  if (cleanBody.length > BODY_MAX) return { ok: false, message: `Le message dépasse ${BODY_MAX} caractères.` };
+  if (!cleanSubject) return { ok: false, message: t.noSubject };
+  if (/[\r\n]/.test(cleanSubject)) return { ok: false, message: t.subjectOneLine };
+  if (cleanSubject.length > SUBJECT_MAX) return { ok: false, message: t.subjectTooLong(SUBJECT_MAX) };
+  if (!cleanBody) return { ok: false, message: t.emptyBody };
+  if (cleanBody.length > BODY_MAX) return { ok: false, message: t.bodyTooLong(BODY_MAX) };
   return { ok: true, subject: cleanSubject, body: cleanBody };
 }
 

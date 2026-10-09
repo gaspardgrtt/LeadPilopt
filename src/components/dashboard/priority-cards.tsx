@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { SilenceDays } from "@/components/shared/silence-days";
 import type { ProspectRow } from "@/components/shared/prospect-table";
-import { daysSince, formatEuro } from "@/lib/format";
-import { STAGE_LABELS } from "@/lib/prospects";
+import { daysSince } from "@/lib/format";
+import { useFormat, useT } from "@/i18n/client";
 import type { ScoreExplanation } from "@/lib/scoring/score";
 
 import { ScoreRing } from "./score-ring";
@@ -21,10 +21,10 @@ import { ScoreRing } from "./score-ring";
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 /** « montant élevé, affaire avancée » : les deux facteurs qui font le plus monter le score. */
-function scoreSummary(explanation: ScoreExplanation | null | undefined): string | null {
+function scoreSummary(explanation: ScoreExplanation | null | undefined, belowAverage: string): string | null {
   if (explanation?.kind !== "scored") return null;
   const positives = explanation.factors.filter((factor) => factor.points > 0).sort((a, b) => b.points - a.points);
-  if (positives.length === 0) return "en dessous de la moyenne de vos affaires";
+  if (positives.length === 0) return belowAverage;
   return positives
     .slice(0, 2)
     .map((factor) => factor.shortLabel)
@@ -32,11 +32,13 @@ function scoreSummary(explanation: ScoreExplanation | null | undefined): string 
 }
 
 export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
+  const t = useT();
+  const format = useFormat();
   return (
     <div className="grid gap-5 md:grid-cols-3">
       {rows.map((row, index) => {
         const first = index === 0;
-        const summary = scoreSummary(row.explanation);
+        const summary = scoreSummary(row.explanation, t.dashboard.scoreBelowAverage);
         const shownScore = row.explanation?.kind === "scored" ? row.explanation.score : row.score;
         return (
           <motion.div
@@ -58,7 +60,7 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
               {first && (
                 <p className="mb-3 inline-flex items-center gap-1.5 self-start rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-hover ring-1 ring-primary/20">
                   <span aria-hidden className="size-1.5 rounded-full bg-primary" />
-                  À relancer en premier
+                  {t.dashboard.firstToFollowUp}
                 </p>
               )}
               <div className="flex items-start justify-between gap-3">
@@ -68,7 +70,7 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
                   <div className="min-w-0">
                     <p className="truncate text-[15px] leading-6 font-semibold text-foreground">{row.entreprise}</p>
                     <p className="line-clamp-2 text-dense text-foreground-secondary">
-                      {[row.contact_nom, row.etape ? STAGE_LABELS[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                      {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
                     </p>
                   </div>
                 </div>
@@ -79,16 +81,16 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
 
               <div className="mt-5 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-overline text-foreground-secondary">Récupérable</p>
+                  <p className="text-overline text-foreground-secondary">{t.dashboard.recoverableLabel}</p>
                   <p className="mt-1 text-[30px] leading-9 font-bold tracking-[-0.035em] text-foreground tabular-nums">
-                    {row.ca_recuperable_eur === null ? "—" : formatEuro(row.ca_recuperable_eur)}
+                    {row.ca_recuperable_eur === null ? "—" : format.euro(row.ca_recuperable_eur)}
                   </p>
                 </div>
                 {row.score !== null && <ScoreRing score={row.score} explanation={row.explanation} />}
               </div>
               {summary && shownScore !== null && (
                 <p className="mt-2 text-dense text-foreground-secondary">
-                  <span className="font-semibold text-foreground tabular-nums">Score {Math.round(shownScore)}/100</span> · {summary}
+                  <span className="font-semibold text-foreground tabular-nums">{t.dashboard.scoreSummary(Math.round(shownScore), "").replace(/ · $/, "")}</span> · {summary}
                 </p>
               )}
 
@@ -106,7 +108,7 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
                   )}
                 >
                   <SparklesIcon className="size-3.5" aria-hidden />
-                  Préparer la relance
+                  {t.dashboard.prepareFollowup}
                   <ArrowRightIcon className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
                 </span>
               </div>

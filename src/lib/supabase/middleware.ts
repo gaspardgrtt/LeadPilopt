@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import type { Database } from "@/types/database";
 import { HOME_PATH, LOGIN_PATH, isPublicPath } from "@/lib/auth/routes";
+import { LANGUE_COOKIE } from "@/lib/preferences/preferences";
+import { getMessages, resolveLocale } from "@/i18n";
 import { getSupabaseEnv } from "./env";
 
 /**
@@ -54,7 +56,8 @@ export async function updateSession(request: NextRequest) {
   if (!isAuthenticated && !isPublicPath(pathname)) {
     // Les routes d'API répondent en JSON : une redirection vers une page HTML serait illisible côté client.
     if (pathname.startsWith("/api/")) {
-      const unauthorized = NextResponse.json({ message: "Session expirée : reconnectez-vous." }, { status: 401 });
+      const locale = resolveLocale(request.cookies.get(LANGUE_COOKIE)?.value, request.headers.get("accept-language"));
+      const unauthorized = NextResponse.json({ message: getMessages(locale).sending.sessionExpired }, { status: 401 });
       response.cookies.getAll().forEach((cookie) => unauthorized.cookies.set(cookie));
       Object.entries(authHeaders).forEach(([key, value]) => unauthorized.headers.set(key, value));
       return unauthorized;

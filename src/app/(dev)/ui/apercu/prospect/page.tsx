@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getI18n } from "@/i18n/server";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { ProspectView } from "@/app/(app)/prospects/[id]/prospect-view";
@@ -14,6 +15,7 @@ export const metadata: Metadata = { title: "Catalogue UI · Aperçu de la fiche"
 // Fiche E5 réelle (ProspectView) avec des données d'exemple, sans session. ?relance=1 affiche une
 // relance déjà préparée. Développement uniquement.
 export default async function ProspectPreviewPage({ searchParams }: { searchParams: Promise<{ relance?: string }> }) {
+  const { locale } = await getI18n();
   if (process.env.NODE_ENV === "production") notFound();
   const { relance } = await searchParams;
   const rows = SAMPLE_PROSPECTS.map((p) => sampleProspectRow(p));
@@ -49,7 +51,7 @@ export default async function ProspectPreviewPage({ searchParams }: { searchPara
                 }
               : null,
           }}
-          explanation={explainScore(prospect, context)}
+          explanation={explainScore(prospect, context, undefined, locale)}
           defaultTone="direct"
         />
       </PageContainer>

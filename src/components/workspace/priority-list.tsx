@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { ArrowRightIcon, SparklesIcon } from "lucide-react";
+import { useFormat, useT } from "@/i18n/client";
 
 import { Button } from "@/components/ui/button";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
@@ -12,8 +13,8 @@ import { SilenceDays } from "@/components/shared/silence-days";
 import { StatusMenu } from "@/components/shared/status-menu";
 import type { ProspectRow } from "@/components/shared/prospect-table";
 import { WhyPriority } from "@/components/score/why-priority";
-import { daysSince, formatEuro, formatInteger } from "@/lib/format";
-import { STAGE_LABELS, STATUS_LABELS, type ProspectStatus } from "@/lib/prospects";
+import { daysSince } from "@/lib/format";
+import type { ProspectStatus } from "@/lib/prospects";
 
 // « Mes priorités » : la liste de travail complète des dossiers oubliés à traiter, du plus
 // rentable au moins rentable, chacun avec « Pourquoi prioritaire ? » et ses deux actions
@@ -28,6 +29,8 @@ type PriorityListProps = {
 };
 
 export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
+  const t = useT();
+  const format = useFormat();
   const [visible, setVisible] = React.useState(PAGE_SIZE);
   const [statuses, setStatuses] = React.useState<Record<string, ProspectStatus>>({});
 
@@ -36,11 +39,11 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
     const result = await onStatusChange(row.id, next);
     if (!result.ok) {
       setStatuses((current) => ({ ...current, [row.id]: previous }));
-      toast.error(result.message ?? "Le statut n'a pas pu être modifié.");
+      toast.error(result.message ?? t.workspace.statusError);
       return;
     }
-    toast.success(`${row.entreprise} : ${STATUS_LABELS[next]}`, {
-      action: { label: "Annuler", onClick: () => void changeStatus(row, previous, next) },
+    toast.success(t.workspace.statusChanged(row.entreprise, t.enums.status[next]), {
+      action: { label: t.common.undo, onClick: () => void changeStatus(row, previous, next) },
     });
   }
 
@@ -73,7 +76,7 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
                       {row.entreprise}
                     </Link>
                     <p className="truncate text-dense text-foreground-secondary">
-                      {[row.contact_nom, row.etape ? STAGE_LABELS[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                      {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {row.date_dernier_contact && <SilenceDays days={daysSince(row.date_dernier_contact)} relative />}
@@ -84,7 +87,7 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
 
                 {explanation ? (
                   <div className="min-w-0 rounded-xl bg-surface-tinted/60 px-3 py-2.5 lg:bg-transparent lg:p-0">
-                    <p className="mb-1.5 text-overline text-foreground-tertiary">Pourquoi prioritaire ?</p>
+                    <p className="mb-1.5 text-overline text-foreground-tertiary">{t.workspace.whyPriority}</p>
                     <WhyPriority factors={explanation.factors} />
                   </div>
                 ) : (
@@ -94,14 +97,14 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
                 <div className="flex items-center justify-between gap-4 border-t pt-3 lg:flex-col lg:items-end lg:border-0 lg:pt-0">
                   <div className="lg:text-right">
                     <p className="text-[22px] leading-7 font-bold tracking-[-0.02em] text-foreground tabular-nums">
-                      {recoverable === null ? "—" : formatEuro(recoverable)}
+                      {recoverable === null ? "—" : format.euro(recoverable)}
                     </p>
-                    <p className="text-caption text-foreground-secondary">récupérables</p>
+                    <p className="text-caption text-foreground-secondary">{t.common.recoverable}</p>
                   </div>
                   <Button asChild size="sm" variant={index < 3 ? "primary" : "secondary"}>
                     <Link href={`/prospects/${row.id}#relance`}>
                       <SparklesIcon />
-                      Préparer la relance
+                      {t.workspace.prepareFollowup}
                     </Link>
                   </Button>
                 </div>
@@ -114,7 +117,7 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
       {rows.length > visible && (
         <div className="mt-5 flex justify-center">
           <Button variant="secondary" onClick={() => setVisible((value) => value + PAGE_SIZE)}>
-            Afficher {formatInteger(Math.min(PAGE_SIZE, rows.length - visible))} dossiers de plus
+            {t.workspace.showMore(format.integer(Math.min(PAGE_SIZE, rows.length - visible)))}
             <ArrowRightIcon className="rotate-90" />
           </Button>
         </div>

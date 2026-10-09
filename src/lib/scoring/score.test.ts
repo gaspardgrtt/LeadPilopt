@@ -132,3 +132,26 @@ describe("explainScore", () => {
     expect(explainScore({ montant_eur: 1000, etape: "proposition", date_dernier_contact: null }, context, TODAY).kind).toBe("unscored");
   });
 });
+
+describe("explication en anglais", () => {
+  it("traduit les libellés sans changer le calcul", () => {
+    const prospects = [
+      { entreprise: "A", montant_eur: 41700, etape: "negociation" as const, date_dernier_contact: "2026-09-12" },
+      { entreprise: "B", montant_eur: 6000, etape: "decouverte" as const, date_dernier_contact: "2026-05-01" },
+    ];
+    const today = new Date(Date.UTC(2026, 9, 8));
+    const context = buildScoreContext(prospects, null, today);
+    const fr = explainScore(prospects[0], context, today);
+    const en = explainScore(prospects[0], context, today, "en");
+    if (fr.kind !== "scored" || en.kind !== "scored") throw new Error("score attendu");
+    expect(en.score).toBe(fr.score);
+    expect(en.factors.map((factor) => factor.points)).toEqual(fr.factors.map((factor) => factor.points));
+    expect(en.summary).toMatch(/^Your most profitable opportunity thanks to .* recoverable\.$/);
+    expect(en.factors.find((factor) => factor.key === "etape")!.label).toBe("Deal in negotiation");
+    expect(explainScore({ ...prospects[0], etape: "gagne" }, context, today, "en")).toEqual({
+      kind: "unscored",
+      reason: "Deal won: there is no money left to recover.",
+    });
+  });
+});
+

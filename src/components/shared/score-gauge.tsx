@@ -1,5 +1,8 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { scoreLevel, type ScoreLevel } from "@/lib/prospects";
+import { useT } from "@/i18n/client";
 
 // Jauge de score : nombre + barre de 56 × 6 px en dégradé de la teinte du palier (clair → saturé).
 const LEVEL_COLORS: Record<ScoreLevel, string> = {
@@ -14,6 +17,7 @@ type ScoreGaugeProps = {
 };
 
 export function ScoreGauge({ score, className }: ScoreGaugeProps) {
+  const t = useT();
   const clamped = Math.max(0, Math.min(100, Math.round(score)));
   const level = scoreLevel(clamped);
 
@@ -24,7 +28,7 @@ export function ScoreGauge({ score, className }: ScoreGaugeProps) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={clamped}
-      aria-label={`Score ${clamped} sur 100, ${level}`}
+      aria-label={t.dashboard.scoreAria(clamped, t.workspace.scoreLevel[level])}
     >
       <span
         className={cn(

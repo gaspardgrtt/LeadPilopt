@@ -13,50 +13,53 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-// Navigation de l'espace de travail, en 3 groupes. Une rubrique « soon » n'est ni un lien ni un
+// Navigation de l'espace de travail, en 3 groupes (libellés : clés du dictionnaire, t.nav). Une rubrique « soon » n'est ni un lien ni un
 // compteur : elle s'affiche discrète avec « Bientôt », pour ne jamais laisser croire qu'elle existe.
 // `hidden` retire une rubrique de la barre latérale sans supprimer sa page : la navigation reste
 // limitée à l'essentiel (une page prête reste accessible par la palette ⌘K).
 
+/** Clé du libellé dans le dictionnaire (`t.nav.items`). */
+export type NavLabelKey = "dashboard" | "priorities" | "deals" | "risk" | "prospects" | "agenda" | "messages" | "performance" | "import" | "crm" | "settings";
+
 export type NavItem = {
-  label: string;
+  label: NavLabelKey;
   href: string;
   icon: LucideIcon;
   /** Seconde touche du raccourci « G puis … » (spéc. UX/UI §10). */
   goKey: string;
 };
 
-export type NavEntry = ((NavItem & { soon?: false }) | { label: string; icon: LucideIcon; soon: true }) & {
+export type NavEntry = ((NavItem & { soon?: false }) | { label: NavLabelKey; icon: LucideIcon; soon: true }) & {
   hidden?: boolean;
 };
 
-export type NavGroup = { label: string; items: NavEntry[] };
+export type NavGroup = { label: "workspace" | "sales" | "data"; items: NavEntry[] };
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Espace de travail",
+    label: "workspace",
     items: [
-      { label: "Dashboard", href: "/tableau-de-bord", icon: HouseIcon, goKey: "D" },
-      { label: "Mes priorités", href: "/priorites", icon: TargetIcon, goKey: "R" },
-      { label: "Mes dossiers", href: "/dossiers", icon: SquareKanbanIcon, goKey: "K" },
-      { label: "Dossiers à risque", href: "/dossiers-a-risque", icon: TriangleAlertIcon, goKey: "A", hidden: true },
+      { label: "dashboard", href: "/tableau-de-bord", icon: HouseIcon, goKey: "D" },
+      { label: "priorities", href: "/priorites", icon: TargetIcon, goKey: "R" },
+      { label: "deals", href: "/dossiers", icon: SquareKanbanIcon, goKey: "K" },
+      { label: "risk", href: "/dossiers-a-risque", icon: TriangleAlertIcon, goKey: "A", hidden: true },
     ],
   },
   {
-    label: "Gestion commerciale",
+    label: "sales",
     items: [
-      { label: "Contacts & prospects", href: "/prospects", icon: UsersIcon, goKey: "P" },
-      { label: "Agenda de relances", icon: CalendarClockIcon, soon: true, hidden: true },
-      { label: "Messages & relances", icon: MailIcon, soon: true, hidden: true },
-      { label: "Performance", icon: ChartLineIcon, soon: true, hidden: true },
+      { label: "prospects", href: "/prospects", icon: UsersIcon, goKey: "P" },
+      { label: "agenda", icon: CalendarClockIcon, soon: true, hidden: true },
+      { label: "messages", icon: MailIcon, soon: true, hidden: true },
+      { label: "performance", icon: ChartLineIcon, soon: true, hidden: true },
     ],
   },
   {
-    label: "Données & configuration",
+    label: "data",
     items: [
-      { label: "Importer mes données", href: "/import", icon: DownloadIcon, goKey: "I" },
-      { label: "Intégrations CRM", icon: PlugIcon, soon: true, hidden: true },
-      { label: "Paramètres", href: "/parametres", icon: SettingsIcon, goKey: "S" },
+      { label: "import", href: "/import", icon: DownloadIcon, goKey: "I" },
+      { label: "crm", icon: PlugIcon, soon: true, hidden: true },
+      { label: "settings", href: "/parametres", icon: SettingsIcon, goKey: "S" },
     ],
   },
 ];

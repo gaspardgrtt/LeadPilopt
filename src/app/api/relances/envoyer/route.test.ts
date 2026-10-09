@@ -60,6 +60,12 @@ vi.mock("@/lib/supabase/server", () => ({
   }),
 }));
 
+// Langue de la requête : français (aucun cookie de préférence dans ces tests).
+vi.mock("@/i18n/server", async () => {
+  const { getMessages } = await import("@/i18n");
+  return { getI18n: async () => ({ locale: "fr", t: getMessages("fr") }), getLocale: async () => "fr" };
+});
+
 vi.mock("@/lib/data/prospects", () => ({
   isUuid: (value: string) => /^[0-9a-f-]{36}$/.test(value),
 }));

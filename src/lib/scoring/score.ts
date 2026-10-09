@@ -1,4 +1,7 @@
 import type { DealStage } from "@/lib/prospects";
+import { formatEuro } from "@/lib/format";
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 
 // « Pourquoi ce score ? » : explication exacte du score de priorité.
 //
@@ -138,19 +141,8 @@ export type ScoreExplanation =
     }
   | { kind: "unscored"; reason: string };
 
-const STAGE_TEXT: Record<DealStage, string> = {
-  decouverte: "en découverte",
-  qualification: "en qualification",
-  proposition: "au stade proposition",
-  negociation: "en négociation",
-  gagne: "gagnée",
-  perdu: "perdue",
-};
-
-// Même rendu que formatEuro (espace insécable classique, lisible aux petites tailles).
-const euroFormat = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
-const euro = { format: (value: number) => euroFormat.format(value).replace(/\u202f/g, "\u00a0") };
-const percent = (value: number) => `${Math.round(value * 100)} %`;
+// Pourcentages selon la langue : « 60 % » / « 60% ».
+const percentFor = (locale: Langue) => (value: number) => `${Math.round(value * 100)}${locale === "en" ? "%" : "\u00a0%"}`;
 
 /** Valeurs de Shapley (3 facteurs) d'un score multiplicatif, relativement à un prospect moyen. */
 function shapley(actual: [number, number, number], baseline: [number, number, number], scale: number) {
@@ -181,19 +173,27 @@ function roundToTotal(base: number, contributions: number[], total: number) {
   return { base: roundedBase, points: rounded };
 }
 
-export function explainScore(prospect: ScoringInput, context: ScoreContext, today: Date = new Date()): ScoreExplanation {
+export function explainScore(
+  prospect: ScoringInput,
+  context: ScoreContext,
+  today: Date = new Date(),
+  locale: Langue = "fr"
+): ScoreExplanation {
+  const t = getMessages(locale).score;
+  const euro = { format: (value: number) => formatEuro(value, locale) };
+  const percent = percentFor(locale);
   if (prospect.etape === "gagne" || prospect.etape === "perdu") {
-    return { kind: "unscored", reason: `Affaire ${STAGE_TEXT[prospect.etape]} : elle n'a plus d'argent à récupérer.` };
+    return { kind: "unscored", reason: t.closed(t.stageText[prospect.etape]) };
   }
   if (!prospect.date_dernier_contact) {
-    return { kind: "unscored", reason: "Date du dernier contact inconnue : impossible de mesurer le silence." };
+    return { kind: "unscored", reason: t.noDate };
   }
   const f = scoringFactors(prospect, context.averageBasket, today);
   if (!f) {
-    return { kind: "unscored", reason: "Montant inconnu et aucun panier moyen défini dans les réglages." };
+    return { kind: "unscored", reason: t.noAmount };
   }
   if (context.maxRecoverable <= 0) {
-    return { kind: "unscored", reason: "Aucune affaire chiffrable dans votre compte pour servir de référence." };
+    return { kind: "unscored", reason: t.noReference };
   }
 
   const recoverable = recoverableRevenue(f);
@@ -205,38 +205,36 @@ export function explainScore(prospect: ScoringInput, context: ScoreContext, toda
   const contributions = shapley([f.amount, f.weight, f.freshness], [avg.amount, avg.weight, avg.freshness], scale);
   const rounded = roundToTotal(base, contributions, score);
 
-  const stageLabel = prospect.etape ? `Affaire ${STAGE_TEXT[prospect.etape]}` : "Étape non reconnue";
+  const stageLabel = prospect.etape ? t.stageLabel(t.stageText[prospect.etape]) : t.unknownStage;
   const unsorted: Omit<ScoreFactor, "shortLabel">[] = [
     {
       key: "montant",
       points: rounded.points[0],
-      label: f.amountEstimated ? `Montant estimé à ${euro.format(f.amount)}` : `Montant de ${euro.format(f.amount)}`,
+      label: f.amountEstimated ? t.amountEstimated(euro.format(f.amount)) : t.amount(euro.format(f.amount)),
       detail: f.amountEstimated
-        ? `Montant absent : panier moyen utilisé · moyenne du compte ${euro.format(avg.amount)}`
-        : `Moyenne de vos dossiers en cours : ${euro.format(avg.amount)}`,
+        ? t.amountEstimatedDetail(euro.format(avg.amount))
+        : t.amountDetail(euro.format(avg.amount)),
     },
     {
       key: "etape",
       points: rounded.points[1],
       label: stageLabel,
-      detail: `Probabilité de base ${percent(f.weight)} · moyenne du compte ${percent(avg.weight)}`,
+      detail: t.stageDetail(percent(f.weight), percent(avg.weight)),
     },
     {
       key: "silence",
       points: rounded.points[2],
       // Un silence plus court que la moyenne rapporte des points : on le dit « contact récent ».
       label:
-        rounded.points[2] > 0
-          ? `Contact récent : ${f.days} jour${f.days > 1 ? "s" : ""}`
-          : `${f.days} jour${f.days > 1 ? "s" : ""} sans contact`,
+        rounded.points[2] > 0 ? t.recentContact(f.days) : t.silentDays(f.days),
       detail:
         f.freshness <= FRESHNESS_FLOOR
-          ? `Silence très long : décote maximale de ${percent(1 - FRESHNESS_FLOOR)}`
-          : `Décote de ${percent(1 - f.freshness)} liée au silence · moyenne du compte ${percent(1 - avg.freshness)}`,
+          ? t.silenceFloorDetail(percent(1 - FRESHNESS_FLOOR))
+          : t.silenceDetail(percent(1 - f.freshness), percent(1 - avg.freshness)),
     },
   ];
   const factors = unsorted
-    .map((factor) => ({ ...factor, shortLabel: shortLabel(factor.key, factor.points, f.days) }))
+    .map((factor) => ({ ...factor, shortLabel: shortLabel(factor.key, factor.points, f.days, t) }))
     .sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
 
   return {
@@ -245,44 +243,25 @@ export function explainScore(prospect: ScoringInput, context: ScoreContext, toda
     recoverable,
     base: rounded.base,
     factors,
-    summary: summarize(factors, recoverable, context, score),
+    summary: summarize(factors, recoverable, score, t, euro.format),
     best: context.best,
     isBest: score >= 100,
   };
 }
 
-function shortLabel(key: ScoreFactorKey, points: number, days: number): string {
-  if (key === "montant") return points > 0 ? "montant élevé" : points < 0 ? "montant modeste" : "montant dans la moyenne";
-  if (key === "etape") return points > 0 ? "affaire avancée" : points < 0 ? "étape peu avancée" : "étape dans la moyenne";
-  return points > 0 ? "contact encore récent" : points < 0 ? `sans nouvelles depuis ${days} j` : "silence dans la moyenne";
+type ScoreTexts = ReturnType<typeof getMessages>["score"];
+
+function shortLabel(key: ScoreFactorKey, points: number, days: number, t: ScoreTexts): string {
+  if (key === "montant") return points > 0 ? t.short.amountHigh : points < 0 ? t.short.amountLow : t.short.amountAverage;
+  if (key === "etape") return points > 0 ? t.short.stageHigh : points < 0 ? t.short.stageLow : t.short.stageAverage;
+  return points > 0 ? t.short.recent : points < 0 ? t.short.silent(days) : t.short.silenceAverage;
 }
 
-const FACTOR_NOUN: Record<ScoreFactorKey, string> = {
-  montant: "son montant",
-  etape: "l'avancement de l'affaire",
-  silence: "un contact encore récent",
-};
-
-const FACTOR_PENALTY: Record<ScoreFactorKey, string> = {
-  montant: "un montant modeste",
-  etape: "une affaire peu avancée",
-  silence: "un silence prolongé",
-};
-
-function summarize(factors: ScoreFactor[], recoverable: number, context: ScoreContext, score: number): string {
+function summarize(factors: ScoreFactor[], recoverable: number, score: number, t: ScoreTexts, euro: (value: number) => string): string {
   const positive = factors.filter((factor) => factor.points > 0);
   const negative = factors.filter((factor) => factor.points < 0);
-  const head =
-    score >= 100
-      ? "Votre opportunité la plus rentable"
-      : score >= 65
-        ? "Prospect prioritaire"
-        : score >= 40
-          ? "Prospect à potentiel moyen"
-          : "Prospect secondaire";
-  const why = positive.length
-    ? ` grâce à ${positive.map((factor) => FACTOR_NOUN[factor.key]).slice(0, 2).join(" et ")}`
-    : "";
-  const but = negative.length ? `, freiné par ${FACTOR_PENALTY[negative[0].key]}` : "";
-  return `${head}${why}${but} : ${euro.format(recoverable)} récupérables.`;
+  const head = score >= 100 ? t.head.best : score >= 65 ? t.head.high : score >= 40 ? t.head.medium : t.head.low;
+  const why = positive.length ? t.thanksTo(positive.map((factor) => t.noun[factor.key]).slice(0, 2).join(t.and)) : "";
+  const but = negative.length ? t.heldBack(t.penalty[negative[0].key]) : "";
+  return t.summary(`${head}${why}${but}`, euro(recoverable));
 }

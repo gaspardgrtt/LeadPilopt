@@ -4,17 +4,19 @@ import { SearchXIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageContainer } from "@/components/layout/page-container";
 import { EmptyState } from "@/components/shared/empty-state";
+import { getI18n } from "@/i18n/server";
 
-export default function ProspectNotFound() {
+export default async function ProspectNotFound() {
+  const { t } = await getI18n();
   return (
     <PageContainer>
       <EmptyState
         icon={SearchXIcon}
-        title="Prospect introuvable"
-        description="Ce prospect n'existe pas ou a été supprimé lors d'un nouvel import."
+        title={t.errors.prospectNotFoundTitle}
+        description={t.errors.prospectNotFoundDescription}
         action={
           <Button asChild>
-            <Link href="/prospects">Retour à la liste</Link>
+            <Link href="/prospects">{t.errors.backToList}</Link>
           </Button>
         }
       />

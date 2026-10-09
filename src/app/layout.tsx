@@ -6,6 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { MotionProvider } from "@/components/motion/motion";
 import { SystemThemeListener } from "@/components/theme/theme-sync";
 import { THEME_INIT_SCRIPT } from "@/lib/preferences/preferences";
+import { I18nProvider } from "@/i18n/client";
+import { getI18n } from "@/i18n/server";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,32 +22,31 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "LeadPilot",
-    template: "%s · LeadPilot",
-  },
-  description:
-    "L'assistant commercial qui vous dit quels dossiers relancer aujourd'hui, combien d'argent est en jeu, et prépare la relance.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: { default: "LeadPilot", template: "%s · LeadPilot" }, description: t.meta.description };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { locale } = await getI18n();
   return (
     // suppressHydrationWarning : la classe `dark` est posée par le script avant l'hydratation.
-    <html lang="fr" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         {/* Thème appliqué avant le premier affichage (cookie + réglage du système) : pas de flash. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body>
         <SystemThemeListener />
-        <MotionProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </MotionProvider>
+        <I18nProvider locale={locale}>
+          <MotionProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </MotionProvider>
+        </I18nProvider>
         <Toaster />
       </body>
     </html>

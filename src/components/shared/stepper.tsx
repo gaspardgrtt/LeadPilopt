@@ -1,4 +1,7 @@
+"use client";
+
 import { CheckIcon } from "lucide-react";
+import { useT } from "@/i18n/client";
 
 import { cn } from "@/lib/utils";
 
@@ -13,8 +16,9 @@ type StepperProps = {
 };
 
 export function Stepper({ steps, current, onStepClick, className }: StepperProps) {
+  const t = useT();
   return (
-    <ol className={cn("flex items-center gap-2 sm:gap-3", className)} aria-label="Étapes de l'import">
+    <ol className={cn("flex items-center gap-2 sm:gap-3", className)} aria-label={t.import.stepsAria}>
       {steps.map((label, index) => {
         const state = index < current ? "done" : index === current ? "current" : "todo";
         const clickable = state === "done" && onStepClick;

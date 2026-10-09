@@ -6,6 +6,7 @@ import { BrevoError, sendBrevoEmail } from "@/lib/brevo/client";
 import { ensureVerifiedSender, getBrevoConfig } from "@/lib/brevo/config";
 import { buildEmailContent, checkEmailContent, isValidEmail } from "@/lib/followups/email";
 import { formatPersonName } from "@/lib/user/display-name";
+import { getI18n } from "@/i18n/server";
 
 // Envoi d'une relance par e-mail via Brevo, après aperçu et confirmation dans l'interface.
 // Corps attendu : { relanceId, objet, corps } — l'objet et le corps sont ceux affichés dans
@@ -25,28 +26,29 @@ function jsonError(status: number, message: string) {
 }
 
 export async function POST(request: NextRequest) {
+  const { t, locale } = await getI18n();
   // Requête émise par l'application elle-même (pas depuis un autre site).
   const origin = request.headers.get("origin");
-  if (!origin || origin !== request.nextUrl.origin) return jsonError(403, "Requête refusée.");
+  if (!origin || origin !== request.nextUrl.origin) return jsonError(403, t.sending.refused);
 
   let payload: { relanceId?: unknown; objet?: unknown; corps?: unknown };
   try {
     payload = await request.json();
   } catch {
-    return jsonError(400, "Requête invalide.");
+    return jsonError(400, t.actions.invalidRequest);
   }
   const relanceId = typeof payload.relanceId === "string" ? payload.relanceId : "";
-  const content = checkEmailContent(payload.objet, payload.corps);
-  if (!isUuid(relanceId)) return jsonError(400, "Requête invalide.");
+  const content = checkEmailContent(payload.objet, payload.corps, locale);
+  if (!isUuid(relanceId)) return jsonError(400, t.actions.invalidRequest);
   if (!content.ok) return jsonError(422, content.message);
 
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims?.sub;
-  if (!userId) return jsonError(401, "Session expirée : reconnectez-vous.");
+  if (!userId) return jsonError(401, t.sending.sessionExpired);
 
   const config = getBrevoConfig();
-  if (!config) return jsonError(503, "L'envoi par e-mail n'est pas encore configuré.");
+  if (!config) return jsonError(503, t.actions.emailNotConfigured);
 
   // Relance et prospect du compte connecté uniquement (RLS + filtre explicite sur le compte).
   const { data: relance, error: relanceError } = await supabase
@@ -55,8 +57,8 @@ export async function POST(request: NextRequest) {
     .eq("utilisateur_id", userId)
     .eq("id", relanceId)
     .maybeSingle();
-  if (relanceError) return jsonError(500, "La relance n'a pas pu être chargée. Réessayez.");
-  if (!relance) return jsonError(404, "Cette relance n'existe plus.");
+  if (relanceError) return jsonError(500, t.sending.loadFollowupFailed);
+  if (!relance) return jsonError(404, t.actions.followupGone);
 
   const [prospectResult, profilResult, recentResult] = await Promise.all([
     supabase
@@ -78,27 +80,27 @@ export async function POST(request: NextRequest) {
       profil: profilResult.error?.code,
       recent: recentResult.error?.code,
     });
-    return jsonError(500, "Le dossier n'a pas pu être chargé. Réessayez.");
+    return jsonError(500, t.sending.loadDealFailed);
   }
   const prospect = prospectResult.data;
-  if (!prospect) return jsonError(404, "Ce prospect n'existe plus.");
+  if (!prospect) return jsonError(404, t.actions.prospectGone);
 
   if (prospect.opposition_prospection_le) {
-    return jsonError(409, "Ce prospect s'est opposé à la prospection : aucun e-mail ne peut lui être envoyé.");
+    return jsonError(409, t.actions.optedOut);
   }
   const recipient = prospect.contact_email?.trim() ?? "";
-  if (!isValidEmail(recipient)) return jsonError(422, "L'adresse e-mail de ce prospect est absente ou invalide.");
+  if (!isValidEmail(recipient)) return jsonError(422, t.actions.badRecipient);
 
-  if (relance.envoi_statut === "envoyee") return jsonError(409, "Cette relance a déjà été envoyée par e-mail.");
-  if (relance.envoi_statut === "en_cours") return jsonError(409, "Un envoi de cette relance est déjà en cours.");
+  if (relance.envoi_statut === "envoyee") return jsonError(409, t.actions.alreadySent);
+  if (relance.envoi_statut === "en_cours") return jsonError(409, t.actions.sendInProgress);
   if (relance.objet.trim() !== content.subject || relance.corps.trim() !== content.body) {
-    return jsonError(409, "Le message a été modifié depuis l'aperçu. Rouvrez l'aperçu avant d'envoyer.");
+    return jsonError(409, t.sending.changedSincePreview);
   }
   if ((recentResult.count ?? 0) >= HOURLY_SEND_LIMIT) {
-    return jsonError(429, `Limite atteinte : ${HOURLY_SEND_LIMIT} e-mails par heure. Réessayez plus tard.`);
+    return jsonError(429, t.sending.hourlyLimit(HOURLY_SEND_LIMIT));
   }
 
-  const sender = await ensureVerifiedSender(config);
+  const sender = await ensureVerifiedSender(config, locale);
   if (!sender.ok) return jsonError(503, sender.message);
 
   // Réservation atomique : une seule requête peut passer la relance « en cours ».
@@ -109,22 +111,27 @@ export async function POST(request: NextRequest) {
     .eq("id", relanceId)
     .or("envoi_statut.is.null,envoi_statut.eq.echec")
     .select("id");
-  if (reserveError) return jsonError(500, "L'envoi n'a pas pu démarrer. Réessayez.");
-  if (!reserved?.length) return jsonError(409, "Cette relance est déjà en cours d'envoi ou envoyée.");
+  if (reserveError) return jsonError(500, t.sending.startFailed);
+  if (!reserved?.length) return jsonError(409, t.sending.alreadySending);
 
   const profil = profilResult.data;
   const { text, html } = buildEmailContent(content.body);
   const replyEmail = profil?.email && isValidEmail(profil.email) ? profil.email : null;
 
   try {
-    const { messageId } = await sendBrevoEmail(config, {
-      to: { email: recipient, ...(prospect.contact_nom?.trim() ? { name: prospect.contact_nom.trim().slice(0, 70) } : {}) },
-      ...(replyEmail ? { replyTo: { email: replyEmail, ...(profil?.nom ? { name: formatPersonName(profil.nom).slice(0, 70) } : {}) } } : {}),
-      subject: content.subject,
-      textContent: text,
-      htmlContent: html,
-      tags: ["leadpilot-relance"],
-    });
+    const { messageId } = await sendBrevoEmail(
+      config,
+      {
+        to: { email: recipient, ...(prospect.contact_nom?.trim() ? { name: prospect.contact_nom.trim().slice(0, 70) } : {}) },
+        ...(replyEmail ? { replyTo: { email: replyEmail, ...(profil?.nom ? { name: formatPersonName(profil.nom).slice(0, 70) } : {}) } } : {}),
+        subject: content.subject,
+        textContent: text,
+        htmlContent: html,
+        tags: ["leadpilot-relance"],
+      },
+      fetch,
+      locale
+    );
 
     const sentAt = new Date().toISOString();
     const { error: saveError } = await supabase
@@ -149,7 +156,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ ok: true, envoyeeLe: sentAt, envoyeeA: recipient });
   } catch (error) {
     const message =
-      error instanceof BrevoError ? error.userMessage : "L'envoi a échoué pour une raison inattendue. Réessayez.";
+      error instanceof BrevoError ? error.userMessage : t.sending.unexpected;
     if (!(error instanceof BrevoError)) console.error("[envoi] erreur inattendue", error);
     else console.error("[envoi] refus Brevo", { status: error.status, incertain: error.uncertain });
     await supabase

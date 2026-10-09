@@ -3,17 +3,18 @@
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ScoreExplanation } from "@/lib/scoring/score";
+import { useT } from "@/i18n/client";
 
 import { ProgressRing } from "./progress-ring";
 
 // Anneau de score du dashboard : 56 px, trait de 5 px, arc qui se dessine au chargement, chiffre
 // au centre en encre de texte (la couleur porte le palier, jamais le texte).
 const TIERS = [
-  { min: 85, label: "excellent", arc: "stroke-score-excellent" },
-  { min: 65, label: "bon", arc: "stroke-score-good" },
-  { min: 40, label: "moyen", arc: "stroke-score-medium" },
-  { min: 15, label: "faible", arc: "stroke-score-low" },
-  { min: 0, label: "très faible", arc: "stroke-score-critical" },
+  { min: 85, label: "excellent" as const, arc: "stroke-score-excellent" },
+  { min: 65, label: "good", arc: "stroke-score-good" },
+  { min: 40, label: "medium", arc: "stroke-score-medium" },
+  { min: 15, label: "low", arc: "stroke-score-low" },
+  { min: 0, label: "critical", arc: "stroke-score-critical" },
 ] as const;
 
 export function scoreTier(score: number) {
@@ -28,6 +29,7 @@ type ScoreRingProps = {
 };
 
 export function ScoreRing({ score, explanation, className }: ScoreRingProps) {
+  const t = useT();
   // L'explication est recalculée à la date du jour : on affiche son score pour que l'anneau et
   // « Pourquoi ce score ? » ne divergent jamais (le score en base est recalculé chaque nuit).
   const shown = explanation?.kind === "scored" ? explanation.score : score;
@@ -40,7 +42,7 @@ export function ScoreRing({ score, explanation, className }: ScoreRingProps) {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={clamped}
-      aria-label={`Score ${clamped} sur 100, ${tier.label}`}
+      aria-label={t.dashboard.scoreAria(clamped, t.enums.scoreTier[tier.label])}
       className={cn("inline-flex shrink-0", className)}
     >
       <ProgressRing value={clamped / 100} size={56} stroke={5} trackClassName="stroke-border/80" arcClassName={tier.arc}>
@@ -55,7 +57,7 @@ export function ScoreRing({ score, explanation, className }: ScoreRingProps) {
     <Tooltip>
       <TooltipTrigger asChild>{ring}</TooltipTrigger>
       <TooltipContent side="top" className="max-w-[300px] px-3.5 py-3">
-        <p className="text-dense font-semibold text-white">Pourquoi {explanation.score} ?</p>
+        <p className="text-dense font-semibold text-white">{t.dashboard.whyScore(explanation.score)}</p>
         <ul className="mt-2 flex flex-col gap-1.5">
           {explanation.factors.map((factor) => (
             <li key={factor.key} className="flex items-center justify-between gap-4 text-caption font-normal text-white/85">
@@ -66,13 +68,13 @@ export function ScoreRing({ score, explanation, className }: ScoreRingProps) {
                   factor.points > 0 ? "text-on-dark-positive" : factor.points < 0 ? "text-on-dark-negative" : "text-white/60"
                 )}
               >
-                {factor.points > 0 ? `+${factor.points}` : factor.points < 0 ? `−${Math.abs(factor.points)}` : "0"} pts
+                {t.dashboard.points(factor.points > 0 ? `+${factor.points}` : factor.points < 0 ? `−${Math.abs(factor.points)}` : "0")}
               </span>
             </li>
           ))}
         </ul>
         <p className="mt-2 border-t border-white/10 pt-2 text-caption font-normal text-white/60">
-          Départ : prospect moyen ({explanation.base} pts) · détail sur la fiche
+          {t.dashboard.scoreStart(explanation.base)}
         </p>
       </TooltipContent>
     </Tooltip>

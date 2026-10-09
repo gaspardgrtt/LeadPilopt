@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { getProfil, getProspectCounts } from "@/lib/data/prospects";
+import { getI18n } from "@/i18n/server";
 
 import { ImportWizard } from "./import-wizard";
 
-export const metadata: Metadata = { title: "Importer des prospects" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t.import.title };
+}
 
 // E2 — fichier, association des colonnes, réglages, puis analyse.
 export default async function ImportPage() {

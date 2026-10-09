@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckIcon } from "lucide-react";
+import { useT } from "@/i18n/client";
 
 import {
   DropdownMenu,
@@ -18,11 +19,12 @@ type StatusMenuProps = {
 
 /** Badge de statut cliquable qui ouvre le menu des 5 statuts. */
 export function StatusMenu({ value, onChange }: StatusMenuProps) {
+  const t = useT();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className="rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label="Changer le statut"
+        aria-label={t.workspace.changeStatus}
         onClick={(event) => event.stopPropagation()}
       >
         <StatusBadge status={value} interactive />

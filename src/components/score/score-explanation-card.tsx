@@ -5,7 +5,7 @@ import { BanknoteIcon, ClockIcon, FlagIcon, InfoIcon, LightbulbIcon, type Lucide
 
 import { cn } from "@/lib/utils";
 import { ScoreRing } from "@/components/dashboard/score-ring";
-import { formatEuro } from "@/lib/format";
+import { useFormat, useT } from "@/i18n/client";
 import type { ScoreExplanation, ScoreFactor } from "@/lib/scoring/score";
 
 import { ScoreWaterfall } from "./score-waterfall";
@@ -22,6 +22,7 @@ const FACTOR_ICONS: Record<ScoreFactor["key"], LucideIcon> = {
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function PointsChip({ points, className }: { points: number; className?: string }) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -32,18 +33,20 @@ export function PointsChip({ points, className }: { points: number; className?: 
         className
       )}
     >
-      {points > 0 ? `+${points}` : points < 0 ? `−${Math.abs(points)}` : "0"} pts
+      {t.sheet.points(points > 0 ? `+${points}` : points < 0 ? `−${Math.abs(points)}` : "0")}
     </span>
   );
 }
 
 export function ScoreExplanationCard({ explanation }: { explanation: ScoreExplanation }) {
+  const t = useT();
+  const format = useFormat();
   if (explanation.kind === "unscored") {
     return (
       <section aria-labelledby="pourquoi-score" className="rounded-xl border bg-surface-tinted p-6">
         <h2 id="pourquoi-score" className="flex items-center gap-2 text-[15px] leading-6 font-semibold text-foreground">
           <InfoIcon className="size-4 text-foreground-tertiary" aria-hidden />
-          Pourquoi pas de score ?
+          {t.sheet.whyNoScore}
         </h2>
         <p className="mt-1.5 text-body text-foreground-secondary">{explanation.reason}</p>
       </section>
@@ -63,7 +66,7 @@ export function ScoreExplanationCard({ explanation }: { explanation: ScoreExplan
             <div className="min-w-0">
               <h2 id="pourquoi-score" className="flex items-center gap-2 text-[17px] leading-6 font-semibold tracking-[-0.01em] text-foreground">
                 <LightbulbIcon className="size-4 text-primary" aria-hidden />
-                Pourquoi ce score ?
+                {t.sheet.whyScore}
               </h2>
               <p className="mt-1 text-body text-foreground-secondary">{explanation.summary}</p>
             </div>
@@ -102,15 +105,15 @@ export function ScoreExplanationCard({ explanation }: { explanation: ScoreExplan
         </div>
 
         <div className="flex flex-col">
-          <p className="text-overline text-foreground-tertiary">Répartition des points</p>
+          <p className="text-overline text-foreground-tertiary">{t.sheet.pointsBreakdown}</p>
           <div className="mt-4 flex-1">
             <ScoreWaterfall base={explanation.base} factors={explanation.factors} score={explanation.score} />
           </div>
           <p className="mt-5 rounded-lg bg-surface-tinted px-3.5 py-3 text-dense text-foreground-secondary">
-            Point de départ : un prospect moyen de votre compte ({explanation.base} pts).{" "}
+            {t.sheet.startingPoint(explanation.base)}{" "}
             {explanation.isBest || !explanation.best
-              ? "Ce prospect est votre opportunité la plus rentable : c'est lui qui vaut 100."
-              : `100 correspond à votre meilleure opportunité, ${explanation.best.entreprise} (${formatEuro(explanation.best.recoverable)} récupérables).`}
+              ? t.sheet.isBest
+              : t.sheet.bestReference(explanation.best.entreprise, format.euro(explanation.best.recoverable))}
           </p>
         </div>
       </div>

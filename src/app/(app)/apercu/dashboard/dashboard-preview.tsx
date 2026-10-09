@@ -3,6 +3,7 @@
 import { PageContainer } from "@/components/layout/page-container";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { buildScoreContext, explainScore } from "@/lib/scoring/score";
+import { useFormat } from "@/i18n/client";
 
 import { SAMPLE_PROSPECTS } from "../sample-data";
 
@@ -39,17 +40,18 @@ const SAMPLE_CONTEXT = buildScoreContext(SAMPLE_TOP, 8000);
 
 /** Même vue que E3 (src/components/dashboard/dashboard-view.tsx), avec des données d'exemple. */
 export function DashboardPreview() {
+  const format = useFormat();
   return (
     <PageContainer className="max-w-[1280px]">
       <DashboardView
         firstName="Claire"
-        todayLabel={new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
-        importLabel="importé il y a 2 jours"
+        todayLabel={new Intl.DateTimeFormat(format.locale === "en" ? "en-GB" : "fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}
+        importLabel={format.daysAgo(2)}
         threshold={21}
         stats={{ caRecuperable: 184300, nbOublies: 42, nbAffairesOuvertes: 318, caRecupere: 12000 }}
         weekly={{ generated: 14, copied: 9 }}
         brief={{ toFollowUp: 42, commissionRate: 4, commissionEditable: false, progress: { done: 3, total: 8 } }}
-        top={SAMPLE_TOP.map((row) => ({ ...row, explanation: explainScore(row, SAMPLE_CONTEXT) }))}
+        top={SAMPLE_TOP.map((row) => ({ ...row, explanation: explainScore(row, SAMPLE_CONTEXT, undefined, format.locale) }))}
         silence={SAMPLE_BUCKETS}
       />
     </PageContainer>

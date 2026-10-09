@@ -1,5 +1,7 @@
 import { formatEuro, formatInteger } from "@/lib/format";
 import type { DealStage } from "@/lib/prospects";
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 
 // Brief du matin : construit à partir des données réelles du compte (aucune IA, aucun chiffre
 // approximé). Il répond, dans l'ordre : combien d'argent est récupérable, combien d'opportunités
@@ -31,29 +33,23 @@ export type MorningBrief = {
   progress: { done: number; total: number; label: string } | null;
 };
 
-const STAGE_PHRASE: Record<DealStage, string> = {
-  decouverte: "premier échange à poursuivre",
-  qualification: "affaire en qualification",
-  proposition: "proposition envoyée",
-  negociation: "affaire en négociation",
-  gagne: "affaire gagnée",
-  perdu: "affaire perdue",
-};
-
-export function buildMorningBrief(input: BriefInput): MorningBrief {
+export function buildMorningBrief(input: BriefInput, locale: Langue = "fr"): MorningBrief {
+  const t = getMessages(locale).brief;
+  const euro = (amount: number) => formatEuro(amount, locale);
+  const integer = (value: number) => formatInteger(value, locale);
   const commission =
     input.commissionRate !== null && input.commissionRate > 0
       ? Math.round((input.recoverable * input.commissionRate) / 100)
       : null;
-  const toFollowUpLabel = `${input.toFollowUp > 1 ? "opportunités" : "opportunité"} à relancer`;
+  const toFollowUpLabel = t.toFollowUp(input.toFollowUp);
   const progress =
     input.progress.total > 0
       ? {
           ...input.progress,
           label:
             input.progress.done >= input.progress.total
-              ? "Toutes les relances du jour sont préparées"
-              : `${formatInteger(input.progress.done)} / ${formatInteger(input.progress.total)} relance${input.progress.total > 1 ? "s" : ""} préparée${input.progress.done > 1 ? "s" : ""} aujourd'hui`,
+              ? t.progressAllDone
+              : t.progress(integer(input.progress.done), integer(input.progress.total), input.progress.total, input.progress.done),
         }
       : null;
 
@@ -69,11 +65,9 @@ export function buildMorningBrief(input: BriefInput): MorningBrief {
 
   const { priority } = input;
   const reasons = [
-    priority.etape ? STAGE_PHRASE[priority.etape] : "affaire en cours",
-    priority.silenceDays !== null
-      ? `sans nouvelles depuis ${priority.silenceDays} jour${priority.silenceDays > 1 ? "s" : ""}`
-      : null,
-    `${formatEuro(priority.recoverable)} en jeu`,
+    priority.etape ? t.stagePhrase[priority.etape] : t.dealInProgress,
+    priority.silenceDays !== null ? t.silentFor(priority.silenceDays) : null,
+    t.atStake(euro(priority.recoverable)),
   ].filter(Boolean);
 
   return {
@@ -81,8 +75,8 @@ export function buildMorningBrief(input: BriefInput): MorningBrief {
     commission,
     toFollowUpLabel,
     action: {
-      sentence: `Relancez ${priority.entreprise} aujourd'hui : ${reasons.join(", ")}.`,
-      cta: `Préparer la relance de ${priority.entreprise}`,
+      sentence: t.sentence(priority.entreprise, reasons.join(", ")),
+      cta: t.cta(priority.entreprise),
       href: `/prospects/${priority.id}`,
     },
     progress,

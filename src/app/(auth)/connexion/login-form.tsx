@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Field } from "@/components/shared/field";
 
+import { useT } from "@/i18n/client";
+
 import { requestMagicLink, type MagicLinkState } from "./actions";
 
 const RESEND_DELAY_SECONDS = 30;
@@ -23,6 +25,7 @@ export function LoginForm({ next, linkError = null }: LoginFormProps) {
   const [state, formAction, pending] = React.useActionState<MagicLinkState, FormData>(requestMagicLink, {
     status: "idle",
   });
+  const t = useT();
   const [editing, setEditing] = React.useState(false);
   const [mode, setMode] = React.useState("connexion");
 
@@ -74,24 +77,14 @@ export function LoginForm({ next, linkError = null }: LoginFormProps) {
     <div className="rounded-lg border bg-surface shadow-card">
       <Tabs value={mode} onValueChange={setMode}>
         <TabsList>
-          <TabsTrigger value="connexion">Connexion</TabsTrigger>
-          <TabsTrigger value="inscription">Inscription</TabsTrigger>
+          <TabsTrigger value="connexion">{t.auth.signInTab}</TabsTrigger>
+          <TabsTrigger value="inscription">{t.auth.signUpTab}</TabsTrigger>
         </TabsList>
         <TabsContent value="connexion">
-          {form(
-            "Recevoir le lien de connexion",
-            "Email",
-            "votre@email.com",
-            "Nous vous envoyons un lien de connexion, sans mot de passe."
-          )}
+          {form(t.auth.signInSubmit, t.auth.signInLabel, t.auth.signInPlaceholder, t.auth.signInHint)}
         </TabsContent>
         <TabsContent value="inscription">
-          {form(
-            "Créer mon compte",
-            "Email professionnel",
-            "votre@entreprise.com",
-            "Pas de carte bancaire. Vous recevez un lien pour activer votre compte."
-          )}
+          {form(t.auth.signUpSubmit, t.auth.signUpLabel, t.auth.signUpPlaceholder, t.auth.signUpHint)}
         </TabsContent>
       </Tabs>
     </div>
@@ -108,6 +101,7 @@ type SentStateProps = {
 
 /** E1, état 2 : confirmation d'envoi, renvoi possible après 30 s. */
 function SentState({ email, next, formAction, pending, onChangeEmail }: SentStateProps) {
+  const t = useT();
   const [secondsLeft, setSecondsLeft] = React.useState(RESEND_DELAY_SECONDS);
 
   React.useEffect(() => {
@@ -121,13 +115,13 @@ function SentState({ email, next, formAction, pending, onChangeEmail }: SentStat
       <div className="mx-auto mb-5 flex size-14 items-center justify-center rounded-full bg-primary-soft">
         <MailCheckIcon className="size-6 text-primary" strokeWidth={2} aria-hidden />
       </div>
-      <h2 className="text-[16px] leading-6 font-semibold text-foreground">Vérifiez votre boîte mail</h2>
+      <h2 className="text-[16px] leading-6 font-semibold text-foreground">{t.auth.sentTitle}</h2>
       <p className="mt-1.5 text-body text-foreground-secondary">
-        Lien envoyé à <span className="font-medium text-foreground">{email}</span>
+        {t.auth.sentTo} <span className="font-medium text-foreground">{email}</span>
       </p>
-      <p className="mt-0.5 text-dense text-foreground-tertiary">Valable 15 minutes</p>
+      <p className="mt-0.5 text-dense text-foreground-tertiary">{t.auth.validity}</p>
       <p className="mt-3 rounded-md bg-surface-tinted px-3 py-2 text-dense text-foreground-secondary">
-        Ouvrez le lien sur cet appareil, dans ce navigateur : c&apos;est lui qui finalise la connexion.
+        {t.auth.sameBrowser}
       </p>
       <form
         action={(formData) => {
@@ -139,7 +133,7 @@ function SentState({ email, next, formAction, pending, onChangeEmail }: SentStat
         <input type="hidden" name="email" value={email} />
         {next && <input type="hidden" name="suivant" value={next} />}
         <Button type="submit" variant="secondary" size="lg" className="w-full" disabled={secondsLeft > 0} loading={pending}>
-          {secondsLeft > 0 ? `Renvoyer le lien (${secondsLeft} s)` : "Renvoyer le lien"}
+          {secondsLeft > 0 ? t.auth.resendIn(secondsLeft) : t.auth.resend}
         </Button>
       </form>
       <button
@@ -147,7 +141,7 @@ function SentState({ email, next, formAction, pending, onChangeEmail }: SentStat
         onClick={onChangeEmail}
         className="mt-4 rounded-sm text-dense text-foreground-secondary underline underline-offset-4 outline-none hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-primary/25"
       >
-        Changer d&apos;adresse
+        {t.auth.changeEmail}
       </button>
     </div>
   );

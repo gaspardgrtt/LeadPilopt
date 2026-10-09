@@ -9,11 +9,15 @@ const auth = {
   getClaims: vi.fn(),
 };
 let prospectCount = 0;
+let preferences: { theme: string; langue: string } | null = null;
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth,
-    from: () => ({ select: async () => ({ count: prospectCount, error: null }) }),
+    from: (table: string) =>
+      table === "utilisateurs"
+        ? { select: () => ({ maybeSingle: async () => ({ data: preferences, error: preferences ? null : { code: "PGRST116" } }) }) }
+        : { select: async () => ({ count: prospectCount, error: null }) },
   }),
 }));
 
@@ -35,6 +39,7 @@ beforeEach(() => {
   auth.verifyOtp.mockReset().mockResolvedValue({ data: { session: {} }, error: null });
   auth.getClaims.mockReset().mockResolvedValue({ data: null });
   prospectCount = 0;
+  preferences = null;
 });
 
 describe("GET /auth/confirm", () => {
@@ -51,6 +56,20 @@ describe("GET /auth/confirm", () => {
     expect(location(await get("?code=abc"))).toBe(`${SITE}/tableau-de-bord`);
     expect(auth.exchangeCodeForSession).toHaveBeenLastCalledWith("abc", undefined);
     expect(location(await get("?code=abc&suivant=%2Fprospects%3Fvue%3Dtous"))).toBe(`${SITE}/prospects?vue=tous`);
+  });
+
+  it("recopie le thème et la langue du compte en cookies dès la connexion", async () => {
+    preferences = { theme: "sombre", langue: "en" };
+    const response = await get("?code=abc");
+    const cookies = response.headers.getSetCookie();
+    expect(cookies.find((cookie) => cookie.startsWith("lp-theme="))).toMatch(/^lp-theme=sombre;.*Max-Age=31536000/);
+    expect(cookies.find((cookie) => cookie.startsWith("lp-langue="))).toMatch(/^lp-langue=en;/);
+  });
+
+  it("sans préférences lisibles (valeur inconnue, erreur), ne pose aucun cookie de préférence", async () => {
+    expect((await get("?code=abc")).headers.getSetCookie().some((cookie) => cookie.startsWith("lp-"))).toBe(false);
+    preferences = { theme: "violet", langue: "de" };
+    expect((await get("?code=abc")).headers.getSetCookie().some((cookie) => cookie.startsWith("lp-"))).toBe(false);
   });
 
   it("refuse une redirection vers un autre site après connexion", async () => {

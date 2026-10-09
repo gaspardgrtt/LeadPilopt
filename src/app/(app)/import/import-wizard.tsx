@@ -29,20 +29,15 @@ import { Stepper } from "@/components/shared/stepper";
 import { UploadZone } from "@/components/shared/upload-zone";
 import { ImportWelcome } from "@/components/onboarding/onboarding";
 import { cn } from "@/lib/utils";
-import { formatEuro, formatInteger } from "@/lib/format";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 import { BATCH_SIZE, IMPORT_FIELDS, type ColumnMapping, type ImportFieldKey } from "@/lib/import/fields";
 import { ImportFileError, readCsvFile, type ParsedFile } from "@/lib/import/read-file";
 import { buildImportRows, guessMapping, missingRequiredFields } from "@/lib/import/rows";
 import { buildSampleCsv, SAMPLE_FILE_NAME } from "@/lib/import/sample";
-import { FOLLOWUP_TONES, TONE_LABELS, type FollowupTone } from "@/lib/prospects";
+import { FOLLOWUP_TONES, type FollowupTone } from "@/lib/prospects";
 
 import { finishImport, importBatch, startImport } from "./actions";
 
-const STEPS = ["Fichier", "Colonnes", "Réglages"];
-
-function plural(count: number, singular: string, pluralForm: string) {
-  return `${formatInteger(count)} ${count > 1 ? pluralForm : singular}`;
-}
 const IGNORE = "__ignorer__";
 const MAPPING_STORAGE_PREFIX = "leadpilot:import-mapping:";
 
@@ -75,6 +70,9 @@ function saveMapping(headers: string[], mapping: ColumnMapping) {
 }
 
 export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
+  const t = useT();
+  const locale = useLocale();
+  const format = useFormat();
   const router = useRouter();
   const [phase, setPhase] = React.useState<Phase>("fichier");
   const [file, setFile] = React.useState<ParsedFile | null>(null);
@@ -83,20 +81,20 @@ export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
   const [mapping, setMapping] = React.useState<ColumnMapping | null>(null);
 
   const preview = React.useMemo(
-    () => (file && mapping ? buildImportRows(file.records, mapping) : null),
-    [file, mapping]
+    () => (file && mapping ? buildImportRows(file.records, mapping, locale) : null),
+    [file, mapping, locale]
   );
 
   async function handleFile(selected: File) {
     setReading(true);
     setFileError(null);
     try {
-      const parsed = await readCsvFile(selected);
+      const parsed = await readCsvFile(selected, locale);
       setFile(parsed);
       setMapping(loadSavedMapping(parsed.headers) ?? guessMapping(parsed.headers));
       setPhase("colonnes");
     } catch (error) {
-      setFileError(error instanceof ImportFileError ? error.message : "Le fichier n'a pas pu être lu.");
+      setFileError(error instanceof ImportFileError ? error.message : t.import.readFailed);
     } finally {
       setReading(false);
     }
@@ -117,11 +115,11 @@ export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
   return (
     <>
       <PageHeader
-        title="Importer des prospects"
-        description="Importez votre liste de prospects depuis un fichier CSV"
+        title={t.import.title}
+        description={t.import.description}
         actions={
           <Stepper
-            steps={STEPS}
+            steps={t.import.steps}
             current={stepIndex}
             onStepClick={
               phase === "analyse"
@@ -171,7 +169,7 @@ export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
           onStart={() => setPhase("analyse")}
           onDone={(summary) => {
             toast.success(
-              `${formatInteger(summary.nbProspects)} prospects analysés · ${formatInteger(summary.nbOublies)} oubliés · ${formatEuro(summary.caRecuperable)} récupérables`
+              t.import.done(format.integer(summary.nbProspects), format.integer(summary.nbOublies), format.euro(summary.caRecuperable))
             );
             router.push("/tableau-de-bord");
             router.refresh();
@@ -197,6 +195,8 @@ type MappingStepProps = {
 };
 
 function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: MappingStepProps) {
+  const t = useT();
+  const format = useFormat();
   const missing = missingRequiredFields(mapping);
   const recognized = IMPORT_FIELDS.filter((field) => mapping[field.key]).length;
   const issues = [...preview.skipped, ...preview.warnings].sort((a, b) => a.line - b.line);
@@ -210,18 +210,17 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-5">
-        <CardTitle>Associer les colonnes</CardTitle>
+        <CardTitle>{t.import.mapping.title}</CardTitle>
         <CardDescription>
-          {file.name} · {plural(file.records.length, "ligne", "lignes")}. {plural(recognized, "champ reconnu", "champs reconnus")} sur {IMPORT_FIELDS.length} :
-          vérifiez avant de continuer.
+          {t.import.mapping.summary(file.name, file.records.length, recognized, IMPORT_FIELDS.length)}
         </CardDescription>
       </CardHeader>
       <Table>
         <TableHeader>
           <TableRow className="h-10 hover:bg-transparent">
-            <TableHead className="w-[30%]">Champ</TableHead>
-            <TableHead className="w-[35%]">Colonne de votre fichier</TableHead>
-            <TableHead>Exemple</TableHead>
+            <TableHead className="w-[30%]">{t.import.mapping.field}</TableHead>
+            <TableHead className="w-[35%]">{t.import.mapping.column}</TableHead>
+            <TableHead>{t.import.mapping.example}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -231,7 +230,7 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
             return (
               <TableRow key={field.key} className="hover:bg-transparent">
                 <TableCell className="font-medium text-foreground">
-                  {field.label}
+                  {t.import.fields[field.key]}
                   {field.required && <span className="text-foreground-tertiary"> *</span>}
                 </TableCell>
                 <TableCell>
@@ -241,14 +240,14 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
                   >
                     <SelectTrigger
                       className={cn("w-full max-w-72", isMissing && "border-warning ring-[3px] ring-warning/15 aria-invalid:border-warning")}
-                      aria-label={`Colonne pour ${field.label}`}
+                      aria-label={t.import.mapping.columnFor(t.import.fields[field.key])}
                       aria-invalid={isMissing || undefined}
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value={IGNORE}>
-                        {field.required ? "Choisir une colonne" : "Ignorer"}
+                        {field.required ? t.import.mapping.choose : t.import.mapping.ignore}
                       </SelectItem>
                       {file.headers.map((header) => (
                         <SelectItem key={header} value={header}>
@@ -260,7 +259,7 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
                 </TableCell>
                 <TableCell className="max-w-64 truncate">
                   {isMissing ? (
-                    <span className="font-semibold text-warning">Obligatoire</span>
+                    <span className="font-semibold text-warning">{t.import.mapping.required}</span>
                   ) : (
                     (sample ?? <span className="text-foreground-tertiary">—</span>)
                   )}
@@ -273,25 +272,25 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
 
       <div className="border-t px-6 py-4">
         <p className="text-body text-foreground">
-          <span className="font-semibold">{plural(preview.rows.length, "prospect prêt", "prospects prêts")} à importer</span>
-          {preview.skipped.length > 0 && <> · {plural(preview.skipped.length, "ligne ignorée", "lignes ignorées")}</>}
-          {preview.duplicates > 0 && <> · {plural(preview.duplicates, "doublon fusionné", "doublons fusionnés")}</>}
+          <span className="font-semibold">{t.import.mapping.ready(preview.rows.length)}</span>
+          {preview.skipped.length > 0 && <> · {t.import.mapping.skipped(preview.skipped.length)}</>}
+          {preview.duplicates > 0 && <> · {t.import.mapping.duplicates(preview.duplicates)}</>}
         </p>
         {issues.length > 0 && (
           <details className="mt-2 text-dense text-foreground-secondary">
             <summary className="cursor-pointer select-none hover:text-foreground">
-              {plural(issues.length, "remarque", "remarques")} sur le contenu du fichier
+              {t.import.mapping.issues(issues.length)}
             </summary>
             <ul className="mt-2 flex max-h-48 flex-col gap-1 overflow-y-auto">
               {issues.slice(0, 50).map((issue, index) => (
                 <li key={`${issue.line}-${index}`} className="flex gap-2">
                   <TriangleAlertIcon className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
                   <span>
-                    Ligne {issue.line} : {issue.message}
+                    {t.import.mapping.line(issue.line, issue.message)}
                   </span>
                 </li>
               ))}
-              {issues.length > 50 && <li>… et {formatInteger(issues.length - 50)} autres</li>}
+              {issues.length > 50 && <li>{t.import.mapping.more(format.integer(issues.length - 50))}</li>}
             </ul>
           </details>
         )}
@@ -300,16 +299,16 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
       <CardFooter className="justify-between border-t pt-5">
         <Button variant="secondary" onClick={onBack}>
           <ArrowLeftIcon />
-          Changer de fichier
+          {t.import.mapping.changeFile}
         </Button>
         <Button onClick={onNext} disabled={missing.length > 0 || preview.rows.length === 0}>
-          Continuer
+          {t.import.mapping.continue}
           <ArrowRightIcon />
         </Button>
       </CardFooter>
       {missing.length > 0 && (
         <p className="px-6 pb-5 text-right text-caption font-normal text-foreground-secondary">
-          Associez {missing.map((key) => IMPORT_FIELDS.find((field) => field.key === key)!.label).join(" et ")} pour continuer.
+          {t.import.mapping.missing(missing.map((key) => t.import.fields[key]).join(t.import.mapping.and))}
         </p>
       )}
     </Card>
@@ -332,6 +331,8 @@ type SettingsStepProps = {
 };
 
 function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, onStart, onDone, onFailed }: SettingsStepProps) {
+  const t = useT();
+  const format = useFormat();
   const [seuil, setSeuil] = React.useState(String(defaults.seuil));
   const [panier, setPanier] = React.useState(defaults.panier === null ? "" : String(defaults.panier));
   const [ton, setTon] = React.useState<FollowupTone>(defaults.ton);
@@ -344,13 +345,13 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
   const resumeFrom = React.useRef<{ importId: string; batch: number } | null>(null);
 
   const seuilValue = Number(seuil);
-  const seuilError = !Number.isInteger(seuilValue) || seuilValue < 1 || seuilValue > 365 ? "Entre 1 et 365 jours" : undefined;
+  const seuilError = !Number.isInteger(seuilValue) || seuilValue < 1 || seuilValue > 365 ? t.import.settings.thresholdError : undefined;
   const panierValue = panier.trim() === "" ? null : Number(panier.replace(/\s/g, "").replace(",", "."));
-  const panierError = panierValue !== null && (!Number.isFinite(panierValue) || panierValue < 0) ? "Montant invalide" : undefined;
+  const panierError = panierValue !== null && (!Number.isFinite(panierValue) || panierValue < 0) ? t.import.settings.basketError : undefined;
   const commissionValue = commission.trim() === "" ? null : Number(commission.replace(/\s/g, "").replace(",", "."));
   const commissionError =
     commissionValue !== null && (!Number.isFinite(commissionValue) || commissionValue <= 0 || commissionValue > 100)
-      ? "Entre 0,01 et 100 %"
+      ? t.import.settings.commissionError
       : undefined;
   const batches = Math.ceil(rows.length / BATCH_SIZE);
 
@@ -381,7 +382,7 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
       onDone(finished.summary);
     } catch (caught) {
       setProgress(null);
-      setError(caught instanceof Error ? caught.message : "L'import a échoué.");
+      setError(caught instanceof Error ? caught.message : t.import.settings.failed);
       onFailed();
     }
   }
@@ -393,12 +394,12 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
         <CardContent className="flex flex-col items-center gap-4 py-16 text-center" aria-live="polite">
           <p className="text-[16px] leading-6 font-semibold text-foreground">
             {progress.done < progress.total
-              ? `Import de ${formatInteger(progress.total)} prospects…`
-              : "Calcul des opportunités à relancer et de l'argent récupérable…"}
+              ? t.import.settings.importing(format.integer(progress.total))
+              : t.import.settings.computing}
           </p>
           <Progress value={progress.done < progress.total ? percent : 100} className="h-2 w-full max-w-md" />
           <p className="text-dense text-foreground-secondary tabular-nums">
-            {formatInteger(progress.done)} / {formatInteger(progress.total)}
+            {format.integer(progress.done)} / {format.integer(progress.total)}
           </p>
         </CardContent>
       </Card>
@@ -408,9 +409,9 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Réglages de l&apos;analyse</CardTitle>
+        <CardTitle>{t.import.settings.title}</CardTitle>
         <CardDescription>
-          {plural(rows.length, "prospect sera analysé", "prospects seront analysés")}. Ces réglages s&apos;appliquent à tout votre compte.
+          {t.import.settings.summary(rows.length)}
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5 sm:grid-cols-2">
@@ -421,29 +422,29 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
           </p>
         )}
         <Field
-          label="Seuil d'oubli"
+          label={t.import.settings.threshold}
           htmlFor="seuil"
-          hint="Au-delà, une affaire ouverte sans contact est considérée comme oubliée."
+          hint={t.import.settings.thresholdHint}
           error={seuilError}
         >
-          <InputWithSuffix id="seuil" suffix="jours" inputMode="numeric" value={seuil} onChange={(e) => setSeuil(e.target.value)} />
+          <InputWithSuffix id="seuil" suffix={t.import.settings.days} inputMode="numeric" value={seuil} onChange={(e) => setSeuil(e.target.value)} />
         </Field>
         <Field
-          label="Panier moyen"
+          label={t.import.settings.basket}
           htmlFor="panier"
           hint={
             averageFromFile
-              ? `Utilisé quand le montant est vide. Moyenne de votre fichier : ${formatEuro(averageFromFile)}.`
-              : "Utilisé quand le montant est vide."
+              ? t.import.settings.basketHintAverage(format.euro(averageFromFile))
+              : t.import.settings.basketHint
           }
           error={panierError}
         >
           <InputWithSuffix id="panier" suffix="€" inputMode="decimal" value={panier} onChange={(e) => setPanier(e.target.value)} />
         </Field>
         <Field
-          label="Taux de commission (facultatif)"
+          label={t.import.settings.commission}
           htmlFor="commission"
-          hint="Affiche votre commission potentielle sur l'argent récupérable."
+          hint={t.import.settings.commissionHint}
           error={commissionError}
           className="sm:col-span-2 sm:max-w-[calc(50%-10px)]"
         >
@@ -451,35 +452,35 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
             id="commission"
             suffix="%"
             inputMode="decimal"
-            placeholder="Ex. 4"
+            placeholder={t.import.settings.commissionPlaceholder}
             value={commission}
             onChange={(e) => setCommission(e.target.value)}
           />
         </Field>
         <div className="flex flex-col gap-1.5 sm:col-span-2">
-          <span className="text-dense font-medium text-foreground">Ton des relances</span>
-          <ToggleGroup type="single" value={ton} onValueChange={(value) => value && setTon(value as FollowupTone)} aria-label="Ton des relances">
+          <span className="text-dense font-medium text-foreground">{t.import.settings.tone}</span>
+          <ToggleGroup type="single" value={ton} onValueChange={(value) => value && setTon(value as FollowupTone)} aria-label={t.import.settings.tone}>
             {FOLLOWUP_TONES.map((value) => (
               <ToggleGroupItem key={value} value={value}>
-                {TONE_LABELS[value]}
+                {t.enums.tone[value]}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
         </div>
-        <Field label="Signature" htmlFor="signature" hint="Ajoutée à la fin de chaque relance." className="sm:col-span-2">
-          <Textarea id="signature" value={signature} maxLength={1000} onChange={(e) => setSignature(e.target.value)} placeholder={"Paul Durand · Ventes\n06 12 34 56 78"} />
+        <Field label={t.import.settings.signature} htmlFor="signature" hint={t.import.settings.signatureHint} className="sm:col-span-2">
+          <Textarea id="signature" value={signature} maxLength={1000} onChange={(e) => setSignature(e.target.value)} placeholder={t.import.settings.signaturePlaceholder} />
         </Field>
         {existingCount > 0 && (
           <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <span className="text-dense font-medium text-foreground">Vos {formatInteger(existingCount)} prospects existants</span>
-            <ToggleGroup type="single" value={mode} onValueChange={(value) => value && setMode(value as "maj" | "remplacer")} aria-label="Mode d'import">
-              <ToggleGroupItem value="maj">Mettre à jour</ToggleGroupItem>
-              <ToggleGroupItem value="remplacer">Remplacer toutes les données</ToggleGroupItem>
+            <span className="text-dense font-medium text-foreground">{t.import.settings.existing(format.integer(existingCount))}</span>
+            <ToggleGroup type="single" value={mode} onValueChange={(value) => value && setMode(value as "maj" | "remplacer")} aria-label={t.import.settings.mode}>
+              <ToggleGroupItem value="maj">{t.import.settings.update}</ToggleGroupItem>
+              <ToggleGroupItem value="remplacer">{t.import.settings.replace}</ToggleGroupItem>
             </ToggleGroup>
             <p className="text-caption font-normal text-foreground-tertiary">
               {mode === "maj"
-                ? "Les prospects déjà présents sont mis à jour ; leurs statuts et relances sont conservés."
-                : "Tous vos prospects actuels et leurs relances seront supprimés avant l'import."}
+                ? t.import.settings.updateHint
+                : t.import.settings.replaceHint}
             </p>
           </div>
         )}
@@ -487,13 +488,13 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
       <CardFooter className="justify-between border-t pt-5">
         <Button variant="secondary" onClick={onBack}>
           <ArrowLeftIcon />
-          Retour
+          {t.common.back}
         </Button>
         <Button
           disabled={Boolean(seuilError || panierError || commissionError)}
           onClick={() => (mode === "remplacer" && !resumeFrom.current ? setConfirmReplace(true) : void run())}
         >
-          {resumeFrom.current ? "Reprendre l'import" : "Lancer l'analyse"}
+          {resumeFrom.current ? t.import.settings.resume : t.import.settings.start}
           <ArrowRightIcon />
         </Button>
       </CardFooter>
@@ -501,15 +502,14 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
       <Dialog open={confirmReplace} onOpenChange={setConfirmReplace}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Remplacer toutes les données ?</DialogTitle>
+            <DialogTitle>{t.import.settings.replaceTitle}</DialogTitle>
             <DialogDescription>
-              Vos {formatInteger(existingCount)} prospects actuels, leurs statuts et leurs relances seront définitivement
-              supprimés, puis remplacés par les {formatInteger(rows.length)} prospects de ce fichier.
+              {t.import.settings.replaceText(format.integer(existingCount), format.integer(rows.length))}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="secondary">Annuler</Button>
+              <Button variant="secondary">{t.common.cancel}</Button>
             </DialogClose>
             <Button
               variant="danger"
@@ -518,7 +518,7 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
                 void run();
               }}
             >
-              Remplacer
+              {t.import.settings.replaceConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>

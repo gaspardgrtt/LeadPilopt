@@ -1,7 +1,10 @@
+"use client";
+
 import { ChevronDownIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { STATUS_LABELS, type ProspectStatus } from "@/lib/prospects";
+import type { ProspectStatus } from "@/lib/prospects";
+import { useT } from "@/i18n/client";
 
 // Badges pastel : fond doux, texte saturé, point de couleur et liseré intérieur discret, rayon 6.
 const STATUS_STYLES: Record<ProspectStatus, { badge: string; dot: string }> = {
@@ -20,6 +23,7 @@ type StatusBadgeProps = {
 };
 
 export function StatusBadge({ status, interactive = false, className }: StatusBadgeProps) {
+  const t = useT();
   return (
     <span
       className={cn(
@@ -29,7 +33,7 @@ export function StatusBadge({ status, interactive = false, className }: StatusBa
       )}
     >
       <span className={cn("size-1.5 shrink-0 rounded-full", STATUS_STYLES[status].dot)} aria-hidden />
-      {STATUS_LABELS[status]}
+      {t.enums.status[status]}
       {interactive && <ChevronDownIcon className="-mr-0.5 size-3 opacity-70" aria-hidden />}
     </span>
   );

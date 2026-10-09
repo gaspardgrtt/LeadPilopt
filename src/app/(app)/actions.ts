@@ -1,5 +1,6 @@
 "use server";
 
+import { getI18n } from "@/i18n/server";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
@@ -23,7 +24,6 @@ import { buildEmailContent, checkEmailContent, isValidEmail } from "@/lib/follow
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
-const GENERIC_ERROR = "L'enregistrement a échoué. Réessayez dans un instant.";
 
 // Un changement de statut modifie le tableau de bord, la liste, la fiche et le compteur de la
 // barre latérale : on invalide tout l'espace connecté.
@@ -33,7 +33,8 @@ function revalidateProspectViews() {
 
 /** Change le statut d'un prospect (badge de statut, E4 et E5). */
 export async function updateProspectStatus(prospectId: string, status: string): Promise<ActionResult> {
-  if (!isUuid(prospectId) || !isProspectStatus(status)) return { ok: false, message: "Requête invalide." };
+  const { t } = await getI18n();
+  if (!isUuid(prospectId) || !isProspectStatus(status)) return { ok: false, message: t.actions.invalidRequest };
   const user = await requireUser();
   const supabase = await createClient();
 
@@ -46,9 +47,9 @@ export async function updateProspectStatus(prospectId: string, status: string): 
 
   if (error) {
     console.error("[prospects] changement de statut impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: "Ce prospect n'existe plus." };
+  if (!data.length) return { ok: false, message: t.actions.prospectGone };
 
   revalidateProspectViews();
   return { ok: true };
@@ -59,8 +60,9 @@ export async function updateProspectStatus(prospectId: string, status: string): 
  * récupérable et score : ils dépendent du poids de l'étape.
  */
 export async function updateProspectStage(prospectId: string, stage: string): Promise<ActionResult> {
+  const { t } = await getI18n();
   if (!isUuid(prospectId) || !(DEAL_STAGES as readonly string[]).includes(stage)) {
-    return { ok: false, message: "Requête invalide." };
+    return { ok: false, message: t.actions.invalidRequest };
   }
   const user = await requireUser();
   const supabase = await createClient();
@@ -74,9 +76,9 @@ export async function updateProspectStage(prospectId: string, stage: string): Pr
 
   if (error) {
     console.error("[prospects] changement d'étape impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: "Ce dossier n'existe plus." };
+  if (!data.length) return { ok: false, message: t.actions.dealGone };
 
   const recalcul = await supabase.rpc("recalculer_prospects");
   if (recalcul.error) console.error("[prospects] recalcul après changement d'étape impossible", { code: recalcul.error.code });
@@ -87,11 +89,12 @@ export async function updateProspectStage(prospectId: string, stage: string): Pr
 
 /** Enregistre l'objet et le corps d'une relance modifiée par l'utilisateur (E5). */
 export async function saveFollowupDraft(relanceId: string, subject: string, body: string): Promise<ActionResult> {
+  const { t } = await getI18n();
   const objet = subject.trim();
   const corps = body.trim();
-  if (!isUuid(relanceId)) return { ok: false, message: "Requête invalide." };
-  if (!objet || objet.length > 300) return { ok: false, message: "L'objet doit faire entre 1 et 300 caractères." };
-  if (!corps || corps.length > 10000) return { ok: false, message: "Le message doit faire entre 1 et 10 000 caractères." };
+  if (!isUuid(relanceId)) return { ok: false, message: t.actions.invalidRequest };
+  if (!objet || objet.length > 300) return { ok: false, message: t.actions.subjectLength };
+  if (!corps || corps.length > 10000) return { ok: false, message: t.actions.bodyLength };
 
   const user = await requireUser();
   const supabase = await createClient();
@@ -104,11 +107,11 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
     .maybeSingle();
   if (readError) {
     console.error("[relances] lecture impossible", { code: readError.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!current) return { ok: false, message: "Cette relance n'existe plus." };
+  if (!current) return { ok: false, message: t.actions.followupGone };
   if (current.envoi_statut === "envoyee" || current.envoi_statut === "en_cours") {
-    return { ok: false, message: "Cette relance a déjà été envoyée par e-mail : elle n'est plus modifiable." };
+    return { ok: false, message: t.actions.alreadySentLocked };
   }
   const { data, error } = await supabase
     .from("relances")
@@ -119,15 +122,16 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
 
   if (error) {
     console.error("[relances] enregistrement impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: "Cette relance n'existe plus." };
+  if (!data.length) return { ok: false, message: t.actions.followupGone };
   return { ok: true };
 }
 
 /** Horodate la copie d'une relance (mesure de l'usage réel, `copiee_le`). */
 export async function markFollowupCopied(relanceId: string): Promise<ActionResult> {
-  if (!isUuid(relanceId)) return { ok: false, message: "Requête invalide." };
+  const { t } = await getI18n();
+  if (!isUuid(relanceId)) return { ok: false, message: t.actions.invalidRequest };
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -139,9 +143,9 @@ export async function markFollowupCopied(relanceId: string): Promise<ActionResul
 
   if (error) {
     console.error("[relances] horodatage de copie impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: "Cette relance n'existe plus." };
+  if (!data.length) return { ok: false, message: t.actions.followupGone };
 
   revalidateProspectViews();
   return { ok: true };
@@ -149,8 +153,9 @@ export async function markFollowupCopied(relanceId: string): Promise<ActionResul
 
 /** Enregistre (ou efface, avec null) le taux de commission du compte, en %. */
 export async function updateCommissionRate(rate: number | null): Promise<ActionResult> {
+  const { t } = await getI18n();
   if (rate !== null && (typeof rate !== "number" || !Number.isFinite(rate) || rate <= 0 || rate > 100)) {
-    return { ok: false, message: "Le taux doit être compris entre 0,01 et 100 %." };
+    return { ok: false, message: t.actions.commissionRange };
   }
   const user = await requireUser();
   const supabase = await createClient();
@@ -160,7 +165,7 @@ export async function updateCommissionRate(rate: number | null): Promise<ActionR
     .eq("id", user.id);
   if (error) {
     console.error("[réglages] taux de commission impossible à enregistrer", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
   revalidateProspectViews();
   return { ok: true };
@@ -168,15 +173,16 @@ export async function updateCommissionRate(rate: number | null): Promise<ActionR
 
 /** Enregistre le prénom et le nom affichés (colonne `utilisateurs.nom`, « Prénom Nom »). */
 export async function updateDisplayName(firstName: string, lastName: string): Promise<ActionResult> {
+  const { t } = await getI18n();
   const nom = formatPersonName(`${typeof firstName === "string" ? firstName : ""} ${typeof lastName === "string" ? lastName : ""}`);
-  if (!nom) return { ok: false, message: "Indiquez au moins votre prénom." };
-  if (nom.length > 120) return { ok: false, message: "120 caractères au maximum." };
+  if (!nom) return { ok: false, message: t.actions.nameRequired };
+  if (nom.length > 120) return { ok: false, message: t.actions.nameTooLong };
   const user = await requireUser();
   const supabase = await createClient();
   const { error } = await supabase.from("utilisateurs").update({ nom }).eq("id", user.id);
   if (error) {
     console.error("[compte] nom impossible à enregistrer", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
   revalidateProspectViews();
   return { ok: true };
@@ -195,8 +201,9 @@ export async function prepareFollowup(
   scenario: string,
   tone: string
 ): Promise<{ ok: true; relance: PreparedFollowup } | { ok: false; message: string }> {
+  const { t } = await getI18n();
   if (!isUuid(prospectId) || !isFollowupScenario(scenario) || !(FOLLOWUP_TONES as readonly string[]).includes(tone)) {
-    return { ok: false, message: "Requête invalide." };
+    return { ok: false, message: t.actions.invalidRequest };
   }
   const ton = tone as FollowupTone;
   const user = await requireUser();
@@ -221,9 +228,9 @@ export async function prepareFollowup(
   ]);
   if (prospectResult.error || profilResult.error || latestResult.error) {
     console.error("[relances] lecture impossible avant préparation");
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!prospectResult.data) return { ok: false, message: "Ce prospect n'existe plus." };
+  if (!prospectResult.data) return { ok: false, message: t.actions.prospectGone };
 
   const profil = profilResult.data;
   const { objet, corps } = renderFollowup(prospectResult.data, scenario, ton, {
@@ -243,7 +250,7 @@ export async function prepareFollowup(
         .single();
   if (error) {
     console.error("[relances] enregistrement impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
   return { ok: true, relance: { id: data.id, objet, corps, ton, scenario } };
 }
@@ -267,9 +274,10 @@ export type EmailPreview = {
 export async function getEmailPreview(
   relanceId: string
 ): Promise<{ ok: true; preview: EmailPreview } | { ok: false; message: string }> {
-  if (!isUuid(relanceId)) return { ok: false, message: "Requête invalide." };
+  const { t, locale } = await getI18n();
+  if (!isUuid(relanceId)) return { ok: false, message: t.actions.invalidRequest };
   const sender = getBrevoSenderIdentity();
-  if (!sender) return { ok: false, message: "L'envoi par e-mail n'est pas encore configuré." };
+  if (!sender) return { ok: false, message: t.actions.emailNotConfigured };
   const user = await requireUser();
   const supabase = await createClient();
 
@@ -279,10 +287,10 @@ export async function getEmailPreview(
     .eq("utilisateur_id", user.id)
     .eq("id", relanceId)
     .maybeSingle();
-  if (error) return { ok: false, message: GENERIC_ERROR };
-  if (!relance) return { ok: false, message: "Cette relance n'existe plus." };
-  if (relance.envoi_statut === "envoyee") return { ok: false, message: "Cette relance a déjà été envoyée par e-mail." };
-  if (relance.envoi_statut === "en_cours") return { ok: false, message: "Un envoi de cette relance est déjà en cours." };
+  if (error) return { ok: false, message: t.actions.generic };
+  if (!relance) return { ok: false, message: t.actions.followupGone };
+  if (relance.envoi_statut === "envoyee") return { ok: false, message: t.actions.alreadySent };
+  if (relance.envoi_statut === "en_cours") return { ok: false, message: t.actions.sendInProgress };
 
   const [prospectResult, profilResult] = await Promise.all([
     supabase
@@ -293,16 +301,16 @@ export async function getEmailPreview(
       .maybeSingle(),
     supabase.from("utilisateurs").select("email").eq("id", user.id).maybeSingle(),
   ]);
-  if (prospectResult.error || profilResult.error) return { ok: false, message: GENERIC_ERROR };
+  if (prospectResult.error || profilResult.error) return { ok: false, message: t.actions.generic };
   const prospect = prospectResult.data;
-  if (!prospect) return { ok: false, message: "Ce prospect n'existe plus." };
+  if (!prospect) return { ok: false, message: t.actions.prospectGone };
   if (prospect.opposition_prospection_le) {
-    return { ok: false, message: "Ce prospect s'est opposé à la prospection : aucun e-mail ne peut lui être envoyé." };
+    return { ok: false, message: t.actions.optedOut };
   }
   if (!isValidEmail(prospect.contact_email)) {
-    return { ok: false, message: "L'adresse e-mail de ce prospect est absente ou invalide." };
+    return { ok: false, message: t.actions.badRecipient };
   }
-  const content = checkEmailContent(relance.objet, relance.corps);
+  const content = checkEmailContent(relance.objet, relance.corps, locale);
   if (!content.ok) return { ok: false, message: content.message };
 
   return {
@@ -323,7 +331,8 @@ export async function getEmailPreview(
  * et passe le dossier en « Ignoré » pour qu'il ne soit plus proposé à la relance.
  */
 export async function setProspectOpposition(prospectId: string, opposed: boolean): Promise<ActionResult> {
-  if (!isUuid(prospectId) || typeof opposed !== "boolean") return { ok: false, message: "Requête invalide." };
+  const { t } = await getI18n();
+  if (!isUuid(prospectId) || typeof opposed !== "boolean") return { ok: false, message: t.actions.invalidRequest };
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -334,9 +343,9 @@ export async function setProspectOpposition(prospectId: string, opposed: boolean
     .select("id");
   if (error) {
     console.error("[prospects] opposition impossible à enregistrer", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: "Ce prospect n'existe plus." };
+  if (!data.length) return { ok: false, message: t.actions.prospectGone };
   revalidateProspectViews();
   return { ok: true };
 }
@@ -346,25 +355,26 @@ export async function setProspectOpposition(prospectId: string, opposed: boolean
  * cookies de l'appareil, lus avant le premier affichage. Seules les valeurs connues sont acceptées.
  */
 export async function updatePreferences(input: { theme?: unknown; langue?: unknown }): Promise<ActionResult> {
+  const { t } = await getI18n();
   const values: { theme?: Theme; langue?: Langue } = {};
   if (input?.theme !== undefined) {
-    if (!isTheme(input.theme)) return { ok: false, message: "Thème inconnu." };
+    if (!isTheme(input.theme)) return { ok: false, message: t.actions.unknownTheme };
     values.theme = input.theme;
   }
   if (input?.langue !== undefined) {
-    if (!isLangue(input.langue)) return { ok: false, message: "Langue inconnue." };
+    if (!isLangue(input.langue)) return { ok: false, message: t.actions.unknownLanguage };
     values.langue = input.langue;
   }
-  if (!values.theme && !values.langue) return { ok: false, message: "Requête invalide." };
+  if (!values.theme && !values.langue) return { ok: false, message: t.actions.invalidRequest };
 
   const user = await requireUser();
   const supabase = await createClient();
   const { data, error } = await supabase.from("utilisateurs").update(values).eq("id", user.id).select("id");
   if (error) {
     console.error("[préférences] enregistrement impossible", { code: error.code });
-    return { ok: false, message: GENERIC_ERROR };
+    return { ok: false, message: t.actions.generic };
   }
-  if (!data.length) return { ok: false, message: GENERIC_ERROR };
+  if (!data.length) return { ok: false, message: t.actions.generic };
 
   const cookieStore = await cookies();
   const cookieOptions = {

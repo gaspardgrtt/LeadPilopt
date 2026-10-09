@@ -1,10 +1,14 @@
-import { STAGE_LABELS, type DealStage, type FollowupTone } from "@/lib/prospects";
+import type { DealStage, FollowupTone } from "@/lib/prospects";
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 
 // Relances par modèles, sans IA : la situation du dossier est déduite des données déjà présentes
 // (étape, date du dernier contact), puis un modèle rédigé à l'avance est complété avec les
 // informations réelles (prénom, entreprise, date du dernier échange, proposition). Rien n'est
 // inventé : une information absente fait simplement disparaître la phrase qui l'utilise.
 // Les notes importées ne sont jamais recopiées dans le message (ce sont des notes internes).
+// Le texte des relances reste en français quelle que soit la langue de l'interface : il est
+// destiné aux prospects. Seules les explications affichées (raisons, libellés) sont traduites.
 
 export const FOLLOWUP_SCENARIOS = [
   "suivi_echange",
@@ -15,22 +19,6 @@ export const FOLLOWUP_SCENARIOS = [
 ] as const;
 
 export type FollowupScenario = (typeof FOLLOWUP_SCENARIOS)[number];
-
-export const SCENARIO_LABELS: Record<FollowupScenario, string> = {
-  suivi_echange: "Suite à un premier échange",
-  suivi_proposition: "Suivi de proposition",
-  decision: "Aide à la décision",
-  reprise_contact: "Reprise de contact",
-  dernier_message: "Dernière relance",
-};
-
-export const SCENARIO_HINTS: Record<FollowupScenario, string> = {
-  suivi_echange: "Découverte ou qualification : relancer la réflexion et proposer un échange.",
-  suivi_proposition: "Une proposition a été transmise : recueillir l'avis du prospect.",
-  decision: "Affaire en négociation : lever les derniers freins.",
-  reprise_contact: "Silence de plus de 60 jours : vérifier que le besoin existe toujours.",
-  dernier_message: "Silence de plus de 120 jours : message bref pour clore ou relancer le dossier.",
-};
 
 /** Au-delà de ces silences, le scénario de reprise prend le pas sur l'étape. */
 export const REPRISE_DAYS = 60;
@@ -71,11 +59,12 @@ export function contactFirstName(contactNom: string | null): string | null {
   return first[0].toLocaleUpperCase("fr-FR") + first.slice(1);
 }
 
-export function detectFollowupContext(prospect: FollowupProspect, today: Date = new Date()): FollowupContext {
+export function detectFollowupContext(prospect: FollowupProspect, today: Date = new Date(), locale: Langue = "fr"): FollowupContext {
+  const t = getMessages(locale);
   const silenceDays = prospect.date_dernier_contact ? silenceFrom(prospect.date_dernier_contact, today) : null;
   const reasons: string[] = [];
-  reasons.push(prospect.etape ? `Étape : ${STAGE_LABELS[prospect.etape]}` : "Étape non renseignée");
-  if (silenceDays !== null) reasons.push(`${silenceDays} jour${silenceDays > 1 ? "s" : ""} sans contact`);
+  reasons.push(prospect.etape ? t.followup.reasonStage(t.enums.stage[prospect.etape]) : t.followup.reasonNoStage);
+  if (silenceDays !== null) reasons.push(t.followup.reasonSilence(silenceDays));
 
   let scenario: FollowupScenario;
   if (silenceDays !== null && silenceDays >= DERNIER_MESSAGE_DAYS) scenario = "dernier_message";

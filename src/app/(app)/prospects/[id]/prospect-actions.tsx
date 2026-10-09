@@ -13,19 +13,9 @@ import { StatusMenu } from "@/components/shared/status-menu";
 import { MovingBorderButton } from "@/components/shared/moving-border-button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { buildGmailComposeUrl } from "@/lib/gmail";
-import {
-  FOLLOWUP_TONES,
-  STATUS_LABELS,
-  TONE_LABELS,
-  type FollowupTone,
-  type ProspectStatus,
-} from "@/lib/prospects";
-import {
-  FOLLOWUP_SCENARIOS,
-  SCENARIO_HINTS,
-  SCENARIO_LABELS,
-  type FollowupScenario,
-} from "@/lib/followups/templates";
+import { FOLLOWUP_TONES, type FollowupTone, type ProspectStatus } from "@/lib/prospects";
+import { useLocale, useT } from "@/i18n/client";
+import { FOLLOWUP_SCENARIOS, type FollowupScenario } from "@/lib/followups/templates";
 import {
   Select,
   SelectContent,
@@ -61,6 +51,7 @@ export function ProspectStatusControl({
   prospectId: string;
   status: ProspectStatus;
 }) {
+  const t = useT();
   const [value, setValue] = React.useState(status);
   React.useEffect(() => setValue(status), [status]);
 
@@ -75,19 +66,16 @@ export function ProspectStatusControl({
       toast.error(result.message);
       return;
     }
-    toast.success(`Statut : ${STATUS_LABELS[next]}`, {
-      action: { label: "Annuler", onClick: () => void change(previous, next) },
+    toast.success(t.sheet.statusChanged(t.enums.status[next]), {
+      action: { label: t.common.undo, onClick: () => void change(previous, next) },
     });
   }
 
   return <StatusMenu value={value} onChange={(next) => void change(next)} />;
 }
 
-const oppositionDate = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
+const oppositionDateFormat = (locale: string) =>
+  new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
 /**
  * Opposition à la prospection (désabonnement, « STOP », refus oral) : enregistrée, elle bloque
@@ -100,6 +88,8 @@ export function OppositionControl({
   prospectId: string;
   opposition: string | null;
 }) {
+  const t = useT();
+  const locale = useLocale();
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
@@ -115,8 +105,8 @@ export function OppositionControl({
       setOpen(false);
       toast.success(
         opposed
-          ? "Opposition levée"
-          : "Opposition enregistrée : plus aucune relance ne sera possible",
+          ? t.sheet.opposition.lifted
+          : t.sheet.opposition.recorded,
       );
       router.refresh();
     });
@@ -127,11 +117,11 @@ export function OppositionControl({
       {opposed ? (
         <span className="inline-flex items-center gap-1.5 rounded-md bg-danger-soft px-2 py-0.5 text-caption font-semibold text-danger">
           <BanIcon className="size-3.5" aria-hidden />
-          Opposé depuis le {oppositionDate.format(new Date(opposition!))}
+          {t.sheet.opposition.since(oppositionDateFormat(locale).format(new Date(opposition!)))}
         </span>
       ) : (
         <span className="text-foreground-secondary">
-          Aucune opposition enregistrée
+          {t.sheet.opposition.none}
         </span>
       )}
       <button
@@ -139,18 +129,18 @@ export function OppositionControl({
         onClick={() => setOpen(true)}
         className="rounded-sm text-dense font-medium text-primary-hover underline-offset-2 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25"
       >
-        {opposed ? "Lever l'opposition" : "Enregistrer une opposition"}
+        {opposed ? t.sheet.opposition.lift : t.sheet.opposition.record}
       </button>
       <Dialog open={open} onOpenChange={(next) => !pending && setOpen(next)}>
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>
-              {opposed ? "Lever l'opposition ?" : "Enregistrer l'opposition ?"}
+              {opposed ? t.sheet.opposition.liftTitle : t.sheet.opposition.recordTitle}
             </DialogTitle>
             <DialogDescription>
               {opposed
-                ? "À faire uniquement si le prospect a de nouveau accepté d'être contacté. Les relances seront à nouveau possibles."
-                : "Le prospect a demandé à ne plus être contacté (réponse « STOP », désabonnement, refus). LeadPilot bloquera toute relance, par Gmail comme par e-mail, et passera le dossier en « Ignoré »."}
+                ? t.sheet.opposition.liftText
+                : t.sheet.opposition.recordText}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -159,14 +149,14 @@ export function OppositionControl({
               onClick={() => setOpen(false)}
               disabled={pending}
             >
-              Annuler
+              {t.common.cancel}
             </Button>
             <Button
               variant={opposed ? "primary" : "danger"}
               onClick={confirm}
               loading={pending}
             >
-              {opposed ? "Lever l'opposition" : "Enregistrer l'opposition"}
+              {opposed ? t.sheet.opposition.lift : t.sheet.opposition.recordConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -218,6 +208,7 @@ export function FollowupPanel({
   opposition,
   emailSending,
 }: FollowupPanelProps) {
+  const t = useT();
   const router = useRouter();
   const [relance, setRelance] = React.useState<FollowupRelance | null>(
     initialRelance,
@@ -241,7 +232,7 @@ export function FollowupPanel({
   );
   const [sendOpen, setSendOpen] = React.useState(false);
   const blockedReason = opposition
-    ? "Ce prospect s'est opposé à la prospection : aucune relance ne peut lui être envoyée, ni par Gmail ni par e-mail."
+    ? t.sheet.opposition.blocked
     : null;
 
   async function prepare(
@@ -278,10 +269,10 @@ export function FollowupPanel({
     setState("ready");
     if (previous.edited) {
       // Le texte modifié a été remplacé par le modèle : on laisse la possibilité de le récupérer.
-      toast.success("Modèle appliqué", {
-        description: "Votre texte modifié a été remplacé.",
+      toast.success(t.followup.templateApplied, {
+        description: t.followup.templateReplaced,
         action: {
-          label: "Récupérer mon texte",
+          label: t.followup.recoverText,
           onClick: () => {
             setSubject(previous.subject);
             setBody(previous.body);
@@ -323,10 +314,10 @@ export function FollowupPanel({
       return;
     }
     if (nextProspectId) {
-      toast.success("Marqué comme relancé · prospect suivant");
+      toast.success(t.followup.markedNext);
       router.push(`/prospects/${nextProspectId}`);
     } else {
-      toast.success("Marqué comme relancé");
+      toast.success(t.followup.marked);
     }
   }
 
@@ -336,15 +327,14 @@ export function FollowupPanel({
       await navigator.clipboard.writeText(`Objet : ${subject}\n\n${body}`);
     } catch {
       toast.error(
-        "La copie a été bloquée par le navigateur. Sélectionnez le texte et copiez-le manuellement.",
+        t.followup.copyBlocked,
       );
       return;
     }
-    toast.success("Relance copiée", {
-      description:
-        "Collez-la dans votre messagerie. Une fois envoyée, marquez le dossier comme relancé.",
+    toast.success(t.followup.copied, {
+      description: t.followup.copiedHint,
       action: {
-        label: "Marquer comme relancé",
+        label: t.followup.markDone,
         onClick: () => void markFollowedUp(),
       },
     });
@@ -364,14 +354,14 @@ export function FollowupPanel({
     // Gmail est seulement ouvert : rien n'est envoyé tant que l'utilisateur ne l'a pas fait.
     toast.success(
       bodyIncluded
-        ? "Brouillon ouvert dans Gmail"
-        : "Brouillon ouvert : collez le message copié",
+        ? t.followup.gmailOpened
+        : t.followup.gmailOpenedPaste,
       {
         description: contactEmail
-          ? "Il n'est pas encore envoyé : relisez-le puis envoyez-le depuis Gmail."
-          : "Ce prospect n'a pas d'email : ajoutez le destinataire dans Gmail avant d'envoyer.",
+          ? t.followup.gmailNotSent
+          : t.followup.gmailNoRecipient,
         action: {
-          label: "Marquer comme relancé",
+          label: t.followup.markDone,
           onClick: () => void markFollowedUp(),
         },
       },
@@ -400,36 +390,28 @@ export function FollowupPanel({
               aria-hidden
             />
           </span>
-          <h3 className="mt-3 text-[15px] leading-6 font-semibold text-foreground">
-            Préparer la relance
-          </h3>
-          <p className="mt-1 text-body text-foreground-secondary">
-            Un modèle rédigé à l&apos;avance, complété avec les données du
-            dossier (prénom, entreprise, date du dernier échange). Vous pourrez
-            le modifier avant de l&apos;ouvrir dans Gmail.
-          </p>
+          <h3 className="mt-3 text-[15px] leading-6 font-semibold text-foreground">{t.followup.prepareTitle}</h3>
+          <p className="mt-1 text-body text-foreground-secondary">{t.followup.prepareText}</p>
 
           <div className="mt-5 w-full rounded-lg border bg-surface p-4 text-left">
             <p className="flex items-center gap-2 text-dense font-semibold text-foreground">
               <CompassIcon className="size-4 text-primary" aria-hidden />
-              Situation détectée
+              {t.followup.detected}
             </p>
             <p className="mt-1 text-dense text-foreground-secondary">
               {context.reasons.join(" · ")}
             </p>
             <p className="mt-2 text-dense text-foreground">
-              Modèle conseillé :{" "}
+              {t.followup.recommendedTemplate}{" "}
               <span className="font-semibold">
-                {SCENARIO_LABELS[context.recommended]}
+                {t.enums.scenario[context.recommended]}
               </span>
             </p>
           </div>
 
           <div className="mt-4 grid w-full gap-3 text-left sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
-              <p className="mb-1.5 text-dense font-medium text-foreground">
-                Modèle
-              </p>
+              <p className="mb-1.5 text-dense font-medium text-foreground">{t.followup.template}</p>
               <Select
                 value={scenario}
                 onValueChange={(value) =>
@@ -438,18 +420,17 @@ export function FollowupPanel({
               >
                 <SelectTrigger
                   className="w-full"
-                  aria-label="Modèle de relance"
+                  aria-label={t.followup.templateAria}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {FOLLOWUP_SCENARIOS.map((value) => (
                     <SelectItem key={value} value={value}>
-                      {SCENARIO_LABELS[value]}
+                      {t.enums.scenario[value]}
                       {value === context.recommended && (
                         <span className="text-caption text-success">
-                          {" "}
-                          · conseillé
+                          {t.followup.recommended}
                         </span>
                       )}
                     </SelectItem>
@@ -458,27 +439,25 @@ export function FollowupPanel({
               </Select>
             </div>
             <div>
-              <p className="mb-1.5 text-dense font-medium text-foreground">
-                Ton
-              </p>
+              <p className="mb-1.5 text-dense font-medium text-foreground">{t.followup.tone}</p>
               <ToggleGroup
                 type="single"
                 value={tone}
                 onValueChange={(value) =>
                   value && setTone(value as FollowupTone)
                 }
-                aria-label="Ton de la relance"
+                aria-label={t.followup.toneAria}
               >
                 {FOLLOWUP_TONES.map((value) => (
                   <ToggleGroupItem key={value} value={value}>
-                    {TONE_LABELS[value]}
+                    {t.enums.tone[value]}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
             </div>
           </div>
           <p className="mt-2 w-full text-left text-caption text-foreground-tertiary">
-            {SCENARIO_HINTS[scenario]}
+            {t.enums.scenarioHint[scenario]}
           </p>
 
           {error && (
@@ -501,7 +480,7 @@ export function FollowupPanel({
             onClick={() => void prepare(scenario, tone)}
           >
             <PenLineIcon />
-            Préparer la relance
+            {t.followup.prepareTitle}
           </MovingBorderButton>
         </div>
       </section>
@@ -538,9 +517,9 @@ export function FollowupPanel({
         sendEmail={{
           onClick: () => setSendOpen(true),
           disabledReason: !emailSending
-            ? "L'envoi par e-mail n'est pas encore configuré (Brevo)."
+            ? t.followup.emailNotConfigured
             : !contactEmail
-              ? "Aucune adresse e-mail pour ce prospect."
+              ? t.followup.noEmailAddress
               : null,
         }}
       />
@@ -582,6 +561,7 @@ function SendEmailDialog({
   beforePreview: () => Promise<boolean>;
   onSent: (info: SentInfo) => void;
 }) {
+  const t = useT();
   const [state, setState] = React.useState<PreviewState>({ kind: "loading" });
   const [sending, setSending] = React.useState(false);
   const sendingRef = React.useRef(false);
@@ -596,7 +576,7 @@ function SendEmailDialog({
         if (!cancelled)
           setState({
             kind: "error",
-            message: "Le message n'a pas pu être enregistré avant l'aperçu.",
+            message: t.followup.previewSaveFailed,
           });
         return;
       }
@@ -637,18 +617,18 @@ function SendEmailDialog({
         toast.error(
           result && !result.ok
             ? result.message
-            : "L'envoi a échoué. Réessayez.",
+            : t.followup.sendFailed,
         );
         return;
       }
-      toast.success("E-mail envoyé", {
-        description: `Envoyé à ${result.envoyeeA} via Brevo. Le dossier est marqué comme relancé.`,
+      toast.success(t.followup.emailSent, {
+        description: t.followup.emailSentTo(result.envoyeeA),
       });
       onSent({ at: result.envoyeeLe, to: result.envoyeeA });
       onOpenChange(false);
     } catch {
       toast.error(
-        "La connexion a été interrompue : l'e-mail a peut-être été envoyé. Rechargez la fiche avant de réessayer.",
+        t.followup.connectionLost,
       );
     } finally {
       sendingRef.current = false;
@@ -660,16 +640,13 @@ function SendEmailDialog({
     <Dialog open={open} onOpenChange={(next) => !sending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
-          <DialogTitle>Envoyer cette relance par e-mail ?</DialogTitle>
-          <DialogDescription>
-            Vérifiez le destinataire et le message : l&apos;e-mail partira dès
-            votre confirmation.
-          </DialogDescription>
+          <DialogTitle>{t.followup.dialogTitle}</DialogTitle>
+          <DialogDescription>{t.followup.dialogText}</DialogDescription>
         </DialogHeader>
 
         {state.kind === "loading" && (
           <p className="py-6 text-center text-body text-foreground-secondary">
-            Préparation de l&apos;aperçu…
+            {t.followup.previewLoading}
           </p>
         )}
         {state.kind === "error" && (
@@ -684,25 +661,25 @@ function SendEmailDialog({
         {state.kind === "ready" && (
           <div className="flex min-w-0 flex-col gap-3">
             <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 rounded-lg border bg-surface-tinted px-3.5 py-3 text-dense">
-              <dt className="text-foreground-secondary">À</dt>
+              <dt className="text-foreground-secondary">{t.followup.to}</dt>
               <dd className="min-w-0 font-medium break-all text-foreground">
                 {state.preview.to.name
                   ? `${state.preview.to.name} <${state.preview.to.email}>`
                   : state.preview.to.email}
               </dd>
-              <dt className="text-foreground-secondary">De</dt>
+              <dt className="text-foreground-secondary">{t.followup.from}</dt>
               <dd className="min-w-0 break-all text-foreground">
                 {state.preview.from.name} &lt;{state.preview.from.email}&gt;
               </dd>
               {state.preview.replyTo && (
                 <>
-                  <dt className="text-foreground-secondary">Réponses à</dt>
+                  <dt className="text-foreground-secondary">{t.followup.replyTo}</dt>
                   <dd className="min-w-0 break-all text-foreground">
                     {state.preview.replyTo}
                   </dd>
                 </>
               )}
-              <dt className="text-foreground-secondary">Objet</dt>
+              <dt className="text-foreground-secondary">{t.followup.subject}</dt>
               <dd className="min-w-0 font-medium text-foreground">
                 {state.preview.subject}
               </dd>
@@ -710,11 +687,7 @@ function SendEmailDialog({
             <pre className="max-h-64 overflow-auto rounded-lg border bg-surface px-3.5 py-3 font-sans text-dense leading-[20px] whitespace-pre-wrap text-foreground">
               {state.preview.text}
             </pre>
-            <p className="text-caption text-foreground-tertiary">
-              La dernière ligne est ajoutée automatiquement à chaque e-mail :
-              elle permet au prospect de s&apos;opposer à la prospection. En cas
-              de « STOP », enregistrez son opposition sur la fiche.
-            </p>
+            <p className="text-caption text-foreground-tertiary">{t.followup.oppositionNote}</p>
           </div>
         )}
 
@@ -724,7 +697,7 @@ function SendEmailDialog({
             onClick={() => onOpenChange(false)}
             disabled={sending}
           >
-            Annuler
+            {t.common.cancel}
           </Button>
           <Button
             onClick={() => void confirmSend()}
@@ -732,7 +705,7 @@ function SendEmailDialog({
             loading={sending}
           >
             <MailIcon />
-            Confirmer l&apos;envoi
+            {t.followup.confirmSend}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -58,4 +58,11 @@ describe("buildMorningBrief", () => {
       "Relancez Acme SAS aujourd'hui : affaire en cours, sans nouvelles depuis 1 jour, 4 867 € en jeu."
     );
   });
+
+  it("produit le brief en anglais", () => {
+    const brief = buildMorningBrief(base, "en");
+    expect(normalize(brief.action!.sentence)).toBe("Follow up Nordwind GmbH today: deal in negotiation, no news for 26 days, €21,406 at stake.");
+    expect(brief.progress!.label).toBe("3 / 8 follow-ups prepared today");
+    expect(brief.toFollowUpLabel).toBe("opportunities to follow up");
+  });
 });

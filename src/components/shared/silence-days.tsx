@@ -1,5 +1,8 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { LONG_SILENCE_DAYS } from "@/lib/prospects";
+import { useT } from "@/i18n/client";
 
 type SilenceDaysProps = {
   days: number;
@@ -10,7 +13,7 @@ type SilenceDaysProps = {
 
 /** Jours sans contact, en badge rouge pâle comme dans la maquette ; texte plus appuyé au-delà de 60 jours. */
 export function SilenceDays({ days, relative = false, className }: SilenceDaysProps) {
-  const label = `${days} jour${days > 1 ? "s" : ""}`;
+  const t = useT();
   return (
     <span
       className={cn(
@@ -19,7 +22,7 @@ export function SilenceDays({ days, relative = false, className }: SilenceDaysPr
         className
       )}
     >
-      {relative ? `Il y a ${label}` : label}
+      {relative ? t.common.daysAgo(days) : t.common.days(days)}
     </span>
   );
 }

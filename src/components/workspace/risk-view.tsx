@@ -5,22 +5,25 @@ import { cn } from "@/lib/utils";
 import { FadeIn } from "@/components/motion/motion";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { SilenceDays } from "@/components/shared/silence-days";
-import { formatEuro, formatInteger } from "@/lib/format";
-import { STAGE_LABELS } from "@/lib/prospects";
+import type { Format } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 import { FLOOR_DAY, type RiskAnalysis, type RiskInput } from "@/lib/risk/risk";
 
 // « Dossiers à risque » (présentation) : les dossiers qui vont être oubliés cette semaine et ceux
 // qui perdent de l'argent récupérable chaque jour sans relance. Règles affichées en clair.
 
 type RiskViewProps = { analysis: RiskAnalysis<RiskInput>; threshold: number };
+type I18n = { t: Awaited<ReturnType<typeof getI18n>>["t"]; format: Format };
 
 function RiskRow({
+  i18n: { t },
   row,
   badge,
   badgeTone,
   amount,
   amountLabel,
 }: {
+  i18n: I18n;
   row: RiskInput & { silence: number };
   badge: string;
   badgeTone: "warning" | "danger";
@@ -37,7 +40,7 @@ function RiskRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-body font-semibold text-foreground">{row.entreprise}</span>
           <span className="block truncate text-dense text-foreground-secondary">
-            {[row.contact_nom, row.etape ? STAGE_LABELS[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+            {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
           </span>
         </span>
         <span className="flex items-center gap-2 max-sm:order-last max-sm:w-full max-sm:pl-11">
@@ -65,6 +68,7 @@ function RiskRow({
 }
 
 function Section({
+  i18n: { format },
   icon: Icon,
   tone,
   title,
@@ -74,6 +78,7 @@ function Section({
   count,
   delay,
 }: {
+  i18n: I18n;
   icon: typeof HourglassIcon;
   tone: "warning" | "danger";
   title: string;
@@ -97,7 +102,7 @@ function Section({
           </span>
           <div className="min-w-0">
             <h2 className="text-[16px] leading-6 font-semibold text-foreground">
-              {title} <span className="text-foreground-tertiary tabular-nums">· {formatInteger(count)}</span>
+              {title} <span className="text-foreground-tertiary tabular-nums">· {format.integer(count)}</span>
             </h2>
             <p className="text-dense text-foreground-secondary">{description}</p>
           </div>
@@ -115,7 +120,9 @@ function Section({
   );
 }
 
-export function RiskView({ analysis, threshold }: RiskViewProps) {
+export async function RiskView({ analysis, threshold }: RiskViewProps) {
+  const i18n = await getI18n();
+  const { t, format } = i18n;
   const { soonForgotten, losingValue, weeklyLossTotal } = analysis;
 
   return (
@@ -123,73 +130,75 @@ export function RiskView({ analysis, threshold }: RiskViewProps) {
       <FadeIn>
         <dl className="grid gap-3 sm:grid-cols-3">
           <div className="rounded-2xl bg-hero p-5 text-hero-foreground shadow-hero ring-1 ring-white/10">
-            <dt className="text-dense text-hero-muted">Argent perdu en 7 jours sans relance</dt>
+            <dt className="text-dense text-hero-muted">{t.workspace.risk.weeklyLoss}</dt>
             <dd className="mt-1 text-[28px] leading-9 font-bold tracking-[-0.03em] tabular-nums">
-              {weeklyLossTotal > 0 ? `−${formatEuro(weeklyLossTotal)}` : formatEuro(0)}
+              {weeklyLossTotal > 0 ? `−${format.euro(weeklyLossTotal)}` : format.euro(0)}
             </dd>
           </div>
           <div className="rounded-2xl border bg-surface p-5 shadow-card">
-            <dt className="text-dense text-foreground-secondary">Bientôt oubliés</dt>
+            <dt className="text-dense text-foreground-secondary">{t.workspace.risk.soonTitle}</dt>
             <dd className="mt-1 text-[28px] leading-9 font-bold tracking-[-0.03em] text-foreground tabular-nums">
-              {formatInteger(soonForgotten.length)}
+              {format.integer(soonForgotten.length)}
             </dd>
           </div>
           <div className="rounded-2xl border bg-surface p-5 shadow-card">
-            <dt className="text-dense text-foreground-secondary">Dossiers qui perdent de la valeur</dt>
+            <dt className="text-dense text-foreground-secondary">{t.workspace.risk.losingCount}</dt>
             <dd className="mt-1 text-[28px] leading-9 font-bold tracking-[-0.03em] text-foreground tabular-nums">
-              {formatInteger(losingValue.length)}
+              {format.integer(losingValue.length)}
             </dd>
           </div>
         </dl>
       </FadeIn>
 
       <Section
+        i18n={i18n}
         icon={HourglassIcon}
         tone="warning"
-        title="Bientôt oubliés"
-        description={`Dossiers en cours qui dépasseront votre seuil de ${threshold} jours sans contact dans la semaine.`}
-        empty="Aucun dossier ne sera oublié dans les 7 prochains jours."
+        title={t.workspace.risk.soonTitle}
+        description={t.workspace.risk.soonDescription(threshold)}
+        empty={t.workspace.risk.soonEmpty}
         count={soonForgotten.length}
         delay={0.1}
       >
         {soonForgotten.map((row) => (
           <RiskRow
+            i18n={i18n}
             key={row.id}
             row={row}
-            badge={row.daysLeft === 1 ? "Oublié demain" : `Oublié dans ${row.daysLeft} j`}
+            badge={row.daysLeft === 1 ? t.workspace.risk.forgottenTomorrow : t.workspace.risk.forgottenIn(row.daysLeft)}
             badgeTone="warning"
-            amount={row.montant_eur === null ? "—" : formatEuro(row.montant_eur)}
-            amountLabel="montant"
+            amount={row.montant_eur === null ? "—" : format.euro(row.montant_eur)}
+            amountLabel={t.workspace.risk.amountLabel}
           />
         ))}
       </Section>
 
       <Section
+        i18n={i18n}
         icon={TrendingDownIcon}
         tone="danger"
-        title="Ils perdent de la valeur"
-        description="Dossiers oubliés à traiter : chaque jour sans relance réduit l'argent récupérable."
-        empty="Aucun dossier oublié ne perd de valeur en ce moment."
+        title={t.workspace.risk.losingTitle}
+        description={t.workspace.risk.losingDescription}
+        empty={t.workspace.risk.losingEmpty}
         count={losingValue.length}
         delay={0.2}
       >
         {losingValue.map((row) => (
           <RiskRow
+            i18n={i18n}
             key={row.id}
             row={row}
-            badge={`Oublié depuis ${row.silence - threshold} j`}
+            badge={t.workspace.risk.forgottenFor(row.silence - threshold)}
             badgeTone="danger"
-            amount={`−${formatEuro(row.weeklyLoss)}`}
-            amountLabel="par semaine"
+            amount={`−${format.euro(row.weeklyLoss)}`}
+            amountLabel={t.workspace.risk.perWeek}
           />
         ))}
       </Section>
 
       <FadeIn delay={0.3}>
         <p className="px-1 text-caption text-foreground-tertiary">
-          Calcul : l&apos;argent récupérable vaut montant × poids de l&apos;étape × (1 − jours sans contact / 180). Chaque jour
-          de silence retire donc 1/180 du montant pondéré, jusqu&apos;au plancher atteint à {FLOOR_DAY} jours. Les dossiers gagnés,
-          perdus ou ignorés ne sont pas concernés.
+          {t.workspace.risk.footnote(FLOOR_DAY)}
         </p>
       </FadeIn>
     </div>

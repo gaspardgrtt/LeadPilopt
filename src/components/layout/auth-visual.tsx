@@ -1,9 +1,12 @@
 import { ClockIcon, SparklesIcon, UsersIcon } from "lucide-react";
 
+import { getI18n } from "@/i18n/server";
+
 // Panneau visuel de la page de connexion. La maquette utilise une photo plein cadre avec une carte
 // en verre dépoli ; on reprend la composition (cadre arrondi, carte flottante en bas) avec un fond
 // aux couleurs de la marque et un aperçu du produit. Une photo HD pourra remplacer le fond.
-export function AuthVisual() {
+export async function AuthVisual() {
+  const { t, format } = await getI18n();
   return (
     <div className="relative flex h-full min-h-[560px] flex-col justify-end overflow-hidden rounded-xl bg-sidebar p-10">
       <div
@@ -32,8 +35,8 @@ export function AuthVisual() {
               <ClockIcon className="size-5" strokeWidth={1.9} />
             </span>
             <div>
-              <p className="text-kpi text-foreground tabular-nums">184 300 €</p>
-              <p className="text-body text-foreground-secondary">d&apos;argent récupérable</p>
+              <p className="text-kpi text-foreground tabular-nums">{format.euro(184300)}</p>
+              <p className="text-body text-foreground-secondary">{t.auth.visual.recoverable}</p>
             </div>
           </div>
           <div className="mt-5 flex flex-col gap-2.5">
@@ -44,7 +47,7 @@ export function AuthVisual() {
                   {name}
                 </span>
                 <span className="rounded-sm bg-danger-soft px-2 py-0.5 text-caption text-danger">
-                  {[26, 41, 63][index]} jours
+                  {t.auth.visual.days([26, 41, 63][index])}
                 </span>
               </div>
             ))}
@@ -54,10 +57,8 @@ export function AuthVisual() {
 
       <div className="relative rounded-lg border border-white/15 bg-white/10 p-6 backdrop-blur-md">
         <SparklesIcon className="size-5 text-white/80" strokeWidth={1.75} aria-hidden />
-        <p className="mt-3 text-[17px] leading-7 font-medium text-white">
-          Vos dossiers oubliés valent de l&apos;argent. LeadPilot vous dit lesquels relancer aujourd&apos;hui, et quoi leur écrire.
-        </p>
-        <p className="mt-3 text-body text-white/65">Importez un export CSV, voyez le montant en 5 minutes.</p>
+        <p className="mt-3 text-[17px] leading-7 font-medium text-white">{t.auth.visual.pitch}</p>
+        <p className="mt-3 text-body text-white/65">{t.auth.visual.pitchHint}</p>
       </div>
     </div>
   );

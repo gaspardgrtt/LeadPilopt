@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { useFormat, useT } from "@/i18n/client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +19,8 @@ import { ScoreGauge } from "@/components/shared/score-gauge";
 import { SilenceDays } from "@/components/shared/silence-days";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StatusMenu } from "@/components/shared/status-menu";
-import { daysSince, formatEuro, formatNumericDate } from "@/lib/format";
+import { daysSince } from "@/lib/format";
 import {
-  STAGE_LABELS,
-  STATUS_LABELS,
   type DealStage,
   type ProspectStatus,
 } from "@/lib/prospects";
@@ -60,6 +59,8 @@ export function ProspectTable({
   compact = false,
   onStatusChange,
 }: ProspectTableProps) {
+  const t = useT();
+  const format = useFormat();
   const router = useRouter();
   const [statuses, setStatuses] = React.useState<
     Record<string, ProspectStatus>
@@ -72,12 +73,12 @@ export function ProspectTable({
     const result = await onStatusChange(row.id, status);
     if (!result.ok) {
       setStatuses((current) => ({ ...current, [row.id]: previous }));
-      toast.error(result.message ?? "Le statut n'a pas pu être modifié.");
+      toast.error(result.message ?? t.workspace.statusError);
       return;
     }
-    toast.success(`${row.entreprise} : ${STATUS_LABELS[status]}`, {
+    toast.success(t.workspace.statusChanged(row.entreprise, t.enums.status[status]), {
       action: {
-        label: "Annuler",
+        label: t.common.undo,
         onClick: () => void changeStatus({ ...row, statut: status }, previous),
       },
     });
@@ -98,7 +99,7 @@ export function ProspectTable({
   return (
     <>
       {/* Mobile : une carte par dossier, l'argent récupérable en évidence. */}
-      <ul className="divide-y md:hidden" aria-label="Prospects">
+      <ul className="divide-y md:hidden" aria-label={t.workspace.prospects.list}>
         {rows.map((row) => {
           const href = `/prospects/${row.id}`;
           return (
@@ -118,7 +119,7 @@ export function ProspectTable({
                   <span className="block truncate text-dense text-foreground-secondary">
                     {[
                       row.contact_nom,
-                      row.etape ? STAGE_LABELS[row.etape] : null,
+                      row.etape ? t.enums.stage[row.etape] : null,
                     ]
                       .filter(Boolean)
                       .join(" · ") || DASH}
@@ -138,7 +139,7 @@ export function ProspectTable({
                 <span className="shrink-0 text-right text-[15px] leading-6 font-semibold text-foreground tabular-nums">
                   {row.ca_recuperable_eur === null
                     ? DASH
-                    : formatEuro(row.ca_recuperable_eur)}
+                    : format.euro(row.ca_recuperable_eur)}
                 </span>
               </div>
             </li>
@@ -149,15 +150,15 @@ export function ProspectTable({
       <Table className="hidden md:table">
         <TableHeader>
           <TableRow className="h-10 hover:bg-transparent">
-            <TableHead>Entreprise</TableHead>
-            {!compact && <TableHead>Étape</TableHead>}
-            {!compact && <TableHead numeric>Montant</TableHead>}
-            <TableHead>Dernier contact</TableHead>
-            <TableHead>Jours sans contact</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead numeric>Argent récupérable</TableHead>
-            <TableHead>Statut</TableHead>
-            {compact && <TableHead>Action</TableHead>}
+            <TableHead>{t.workspace.prospects.columns.company}</TableHead>
+            {!compact && <TableHead>{t.workspace.prospects.columns.stage}</TableHead>}
+            {!compact && <TableHead numeric>{t.workspace.prospects.columns.amount}</TableHead>}
+            <TableHead>{t.workspace.prospects.columns.lastContact}</TableHead>
+            <TableHead>{t.workspace.prospects.columns.silence}</TableHead>
+            <TableHead>{t.workspace.prospects.columns.score}</TableHead>
+            <TableHead numeric>{t.workspace.prospects.columns.recoverable}</TableHead>
+            <TableHead>{t.workspace.prospects.columns.status}</TableHead>
+            {compact && <TableHead>{t.workspace.prospects.columns.action}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -192,19 +193,19 @@ export function ProspectTable({
                 </TableCell>
                 {!compact && (
                   <TableCell>
-                    {row.etape ? STAGE_LABELS[row.etape] : DASH}
+                    {row.etape ? t.enums.stage[row.etape] : DASH}
                   </TableCell>
                 )}
                 {!compact && (
                   <TableCell numeric>
                     {row.montant_eur === null
                       ? DASH
-                      : formatEuro(row.montant_eur)}
+                      : format.euro(row.montant_eur)}
                   </TableCell>
                 )}
                 <TableCell className="tabular-nums">
                   {row.date_dernier_contact
-                    ? formatNumericDate(row.date_dernier_contact)
+                    ? format.numericDate(row.date_dernier_contact)
                     : DASH}
                 </TableCell>
                 <TableCell>
@@ -220,13 +221,13 @@ export function ProspectTable({
                 <TableCell numeric className="font-semibold text-foreground">
                   {row.ca_recuperable_eur === null
                     ? DASH
-                    : formatEuro(row.ca_recuperable_eur)}
+                    : format.euro(row.ca_recuperable_eur)}
                 </TableCell>
                 <TableCell>{statusControl(row)}</TableCell>
                 {compact && (
                   <TableCell>
                     <Button size="sm" asChild>
-                      <Link href={href}>Voir la relance</Link>
+                      <Link href={href}>{t.workspace.viewFollowup}</Link>
                     </Button>
                   </TableCell>
                 )}

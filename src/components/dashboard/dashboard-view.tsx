@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRightIcon, PartyPopperIcon } from "lucide-react";
 
@@ -6,7 +8,8 @@ import { FadeIn } from "@/components/motion/motion";
 import type { ProspectRow } from "@/components/shared/prospect-table";
 import { SilenceChart } from "@/components/shared/silence-chart";
 import { buildMorningBrief } from "@/lib/brief/brief";
-import { daysSince, formatInteger } from "@/lib/format";
+import { daysSince } from "@/lib/format";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 
 import { DashboardHero } from "./dashboard-hero";
 import { FollowUpQueue } from "./follow-up-queue";
@@ -43,6 +46,9 @@ export type DashboardViewProps = {
 };
 
 export function DashboardView({ firstName, todayLabel, importLabel, threshold, stats, weekly, top, silence, brief }: DashboardViewProps) {
+  const t = useT();
+  const locale = useLocale();
+  const format = useFormat();
   const priorities = top.slice(0, 3);
   const queue = top.slice(3);
 
@@ -63,7 +69,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
         }
       : null,
     progress: brief.progress,
-  });
+  }, locale);
 
   return (
     <>
@@ -84,11 +90,10 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
         <FadeIn delay={0.3} className="mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="priorites-title" className="text-[20px] leading-7 font-semibold tracking-[-0.02em] text-foreground">
-              À relancer en priorité
+              {t.dashboard.prioritiesTitle}
             </h2>
             <p className="mt-1 text-body text-foreground-secondary">
-              Les affaires qui rapportent le plus si vous les relancez aujourd&apos;hui. Le score les compare à votre
-              affaire la plus rentable (100).
+              {t.dashboard.prioritiesDescription}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
@@ -106,7 +111,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
               href="/prospects"
               className="group inline-flex items-center gap-1.5 rounded-md text-dense font-semibold text-primary outline-none hover:text-accent-violet focus-visible:ring-[3px] focus-visible:ring-primary/25"
             >
-              Voir les {formatInteger(stats.nbOublies)} prospects oubliés
+              {t.dashboard.seeForgotten(format.integer(stats.nbOublies))}
               <ArrowRightIcon className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
             </Link>
           </div>
@@ -120,9 +125,9 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
               <span className="flex size-12 items-center justify-center rounded-xl bg-success-soft text-success">
                 <PartyPopperIcon className="size-6" aria-hidden />
               </span>
-              <p className="mt-4 text-[16px] leading-6 font-semibold text-foreground">Aucun prospect oublié</p>
+              <p className="mt-4 text-[16px] leading-6 font-semibold text-foreground">{t.dashboard.noForgottenTitle}</p>
               <p className="mt-1 max-w-sm text-body text-foreground-secondary">
-                Tout est traité. Revenez après votre prochain import.
+                {t.dashboard.noForgottenDescription}
               </p>
             </Card>
           </FadeIn>
@@ -135,8 +140,8 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
             <FadeIn delay={0.45} className="min-w-0">
               <Card className="h-full">
                 <CardHeader className="pb-2">
-                  <CardTitle>File de relance</CardTitle>
-                  <CardDescription>Ensuite, par CA récupérable · sans contact depuis plus de {threshold} jours</CardDescription>
+                  <CardTitle>{t.dashboard.queueTitle}</CardTitle>
+                  <CardDescription>{t.dashboard.queueDescription(threshold)}</CardDescription>
                 </CardHeader>
                 <CardContent className="px-3 pt-2 pb-3">
                   <FollowUpQueue rows={queue} startRank={4} />
@@ -148,13 +153,13 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
             <FadeIn delay={0.55} className={queue.length > 0 ? "min-w-0" : "min-w-0 xl:col-span-2"}>
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle>Où dort l&apos;argent</CardTitle>
-                  <CardDescription>CA récupérable par ancienneté du dernier contact</CardDescription>
+                  <CardTitle>{t.dashboard.chartTitle}</CardTitle>
+                  <CardDescription>{t.dashboard.chartDescription}</CardDescription>
                 </CardHeader>
                 <CardContent className="pt-5 pb-6">
                   <SilenceChart buckets={silence} />
                   <p className="mt-5 text-dense text-foreground-tertiary">
-                    La probabilité de récupération baisse avec le silence : relancez d&apos;abord les plus récents.
+                    {t.dashboard.chartNote}
                   </p>
                 </CardContent>
               </Card>

@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ArrowRightLeftIcon, CheckIcon } from "lucide-react";
+import { useFormat, useT } from "@/i18n/client";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,8 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SilenceDays } from "@/components/shared/silence-days";
 import type { ProspectListItem } from "@/lib/data/prospects";
-import { daysSince, formatEuro, formatInteger } from "@/lib/format";
-import { DEAL_STAGES, STAGE_LABELS, type DealStage } from "@/lib/prospects";
+import { daysSince } from "@/lib/format";
+import { DEAL_STAGES, type DealStage } from "@/lib/prospects";
 
 // « Mes dossiers » : Kanban par étape de l'affaire. Glisser-déposer à la souris, et menu
 // « Déplacer vers » sur chaque carte (clavier, mobile). Un déplacement change l'étape en base
@@ -50,6 +51,8 @@ type KanbanBoardProps = {
 };
 
 export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
+  const t = useT();
+  const format = useFormat();
   const [stages, setStages] = React.useState<Record<string, DealStage>>({});
   const [dragging, setDragging] = React.useState<string | null>(null);
   const [over, setOver] = React.useState<ColumnKey | null>(null);
@@ -77,12 +80,12 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
         delete next[row.id];
         return next;
       });
-      toast.error(result.message ?? "Le dossier n'a pas pu être déplacé.");
+      toast.error(result.message ?? t.workspace.deals.moveError);
       return;
     }
-    toast.success(`${row.entreprise} → ${STAGE_LABELS[stage]}`, {
-      description: "Score et argent récupérable recalculés.",
-      action: previous !== "sans_etape" ? { label: "Annuler", onClick: () => void move({ ...row, etape: stage }, previous) } : undefined,
+    toast.success(t.workspace.deals.moved(row.entreprise, t.enums.stage[stage]), {
+      description: t.workspace.deals.recalculated,
+      action: previous !== "sans_etape" ? { label: t.common.undo, onClick: () => void move({ ...row, etape: stage }, previous) } : undefined,
     });
   }
 
@@ -95,15 +98,15 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
           type="single"
           value={scope}
           onValueChange={(value) => value && setScope(value as "ouverts" | "tous")}
-          aria-label="Dossiers affichés"
+          aria-label={t.workspace.deals.shown}
         >
-          <ToggleGroupItem value="ouverts">Dossiers en cours</ToggleGroupItem>
+          <ToggleGroupItem value="ouverts">{t.workspace.deals.open}</ToggleGroupItem>
           <ToggleGroupItem value="tous">
-            Avec les dossiers clos <span className="text-foreground-tertiary tabular-nums">{formatInteger(closedCount)}</span>
+            {t.workspace.deals.withClosed} <span className="text-foreground-tertiary tabular-nums">{format.integer(closedCount)}</span>
           </ToggleGroupItem>
         </ToggleGroup>
         <p className="hidden text-dense text-foreground-tertiary md:block">
-          Glissez une carte d&apos;une colonne à l&apos;autre pour changer l&apos;étape.
+          {t.workspace.deals.dragHint}
         </p>
       </div>
 
@@ -117,7 +120,7 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
             return (
               <section
                 key={column}
-                aria-label={column === "sans_etape" ? "Sans étape" : STAGE_LABELS[column]}
+                aria-label={column === "sans_etape" ? t.workspace.deals.noStage : t.enums.stage[column]}
                 onDragOver={(event) => {
                   if (!droppable || !dragging) return;
                   event.preventDefault();
@@ -138,12 +141,12 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
                 <header className="flex items-center gap-2.5 px-3.5 pt-3.5 pb-2.5">
                   <span aria-hidden className={cn("size-2 rounded-full", COLUMN_ACCENT[column])} />
                   <h2 className="text-body font-semibold text-foreground">
-                    {column === "sans_etape" ? "Sans étape" : STAGE_LABELS[column]}
+                    {column === "sans_etape" ? t.workspace.deals.noStage : t.enums.stage[column]}
                   </h2>
                   <span className="rounded-full bg-surface px-2 py-0.5 text-caption font-semibold text-foreground-secondary tabular-nums ring-1 ring-border">
-                    {formatInteger(items.length)}
+                    {format.integer(items.length)}
                   </span>
-                  <span className="ml-auto text-caption text-foreground-tertiary tabular-nums">{total > 0 ? formatEuro(total) : ""}</span>
+                  <span className="ml-auto text-caption text-foreground-tertiary tabular-nums">{total > 0 ? format.euro(total) : ""}</span>
                 </header>
 
                 <ol className="flex min-h-24 flex-col gap-2 px-2.5 pb-2.5">
@@ -179,21 +182,21 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
                       </div>
                       <div className="mt-2.5 flex items-center justify-between gap-2">
                         <span className="text-dense font-semibold text-foreground tabular-nums">
-                          {row.montant_eur === null ? "Montant estimé" : formatEuro(row.montant_eur)}
+                          {row.montant_eur === null ? t.workspace.deals.estimatedAmount : format.euro(row.montant_eur)}
                         </span>
                         {row.date_dernier_contact && <SilenceDays days={daysSince(row.date_dernier_contact)} />}
                       </div>
                       {row.est_oublie && row.ca_recuperable_eur !== null && !stages[row.id] && (
                         <p className="mt-2 flex items-center gap-1.5 text-caption text-warning">
                           <span aria-hidden className="size-1.5 rounded-full bg-warning" />
-                          À relancer · {formatEuro(row.ca_recuperable_eur)} récupérables
+                          {t.workspace.deals.toFollowUp(format.euro(row.ca_recuperable_eur))}
                         </p>
                       )}
                     </li>
                   ))}
                   {items.length === 0 && (
                     <li className="flex flex-1 items-center justify-center rounded-xl border border-dashed px-3 py-6 text-center text-dense text-foreground-tertiary">
-                      Aucun dossier
+                      {t.workspace.deals.empty}
                     </li>
                   )}
                   {items.length > shown.length && (
@@ -204,7 +207,7 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
                         className="w-full"
                         onClick={() => setExpanded((current) => ({ ...current, [column]: true }))}
                       >
-                        Afficher les {formatInteger(items.length - shown.length)} autres
+                        {t.workspace.deals.showOthers(format.integer(items.length - shown.length))}
                       </Button>
                     </li>
                   )}
@@ -219,20 +222,21 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
 }
 
 function MoveMenu({ current, onMove }: { current: ColumnKey; onMove: (stage: DealStage) => void }) {
+  const t = useT();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Déplacer vers une autre étape"
+        aria-label={t.workspace.deals.moveAria}
         className="flex size-7 shrink-0 items-center justify-center rounded-md text-foreground-tertiary outline-none transition-colors hover:bg-surface-subtle hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-primary/25 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 md:data-[state=open]:opacity-100"
       >
         <ArrowRightLeftIcon className="size-3.5" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
+        <DropdownMenuLabel>{t.workspace.deals.moveTo}</DropdownMenuLabel>
         {DEAL_STAGES.map((stage) => (
           <DropdownMenuItem key={stage} disabled={stage === current} onSelect={() => onMove(stage)}>
             <span aria-hidden className={cn("size-2 rounded-full", COLUMN_ACCENT[stage])} />
-            {STAGE_LABELS[stage]}
+            {t.enums.stage[stage]}
             {stage === current && <CheckIcon className="ml-auto" />}
           </DropdownMenuItem>
         ))}

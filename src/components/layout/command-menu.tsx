@@ -13,6 +13,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { NAV_ITEMS } from "@/components/layout/navigation";
+import { useT } from "@/i18n/client";
 
 // Spéc. UX/UI §10 — ⌘K ouvre la palette ; « G puis D / R / K / A / P / I » navigue entre les écrans.
 // La recherche de prospects s'ajoutera ici avec la liste (E4).
@@ -37,6 +38,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 export function CommandMenuProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const goPending = React.useRef<number | null>(null);
 
@@ -76,11 +78,11 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
   return (
     <CommandMenuContext.Provider value={value}>
       {children}
-      <CommandDialog open={open} onOpenChange={setOpen} title="Palette de commandes" description="Aller à un écran">
-        <CommandInput placeholder="Aller à…" />
+      <CommandDialog open={open} onOpenChange={setOpen} title={t.nav.commandTitle} description={t.nav.commandDescription}>
+        <CommandInput placeholder={t.nav.commandPlaceholder} />
         <CommandList>
-          <CommandEmpty>Aucun résultat.</CommandEmpty>
-          <CommandGroup heading="Navigation">
+          <CommandEmpty>{t.nav.commandEmpty}</CommandEmpty>
+          <CommandGroup heading={t.nav.commandGroup}>
             {NAV_ITEMS.map((item) => (
               <CommandItem
                 key={item.href}
@@ -90,7 +92,7 @@ export function CommandMenuProvider({ children }: { children: React.ReactNode })
                 }}
               >
                 <item.icon strokeWidth={1.75} />
-                {item.label}
+                {t.nav.items[item.label]}
                 <CommandShortcut>G {item.goKey}</CommandShortcut>
               </CommandItem>
             ))}

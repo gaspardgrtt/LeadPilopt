@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getI18n } from "@/i18n/server";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
@@ -13,7 +14,8 @@ import { SAMPLE_BASKET, workspaceSample } from "../workspace-sample";
 export const metadata: Metadata = { title: "Catalogue UI · Aperçu de Mes priorités" };
 
 // Même vue que /priorites, avec le jeu d'exemple. Développement uniquement.
-export default function PrioritiesPreviewPage() {
+export default async function PrioritiesPreviewPage() {
+  const { locale } = await getI18n();
   if (process.env.NODE_ENV === "production") notFound();
   const all = workspaceSample();
   const context = buildScoreContext(all, SAMPLE_BASKET);
@@ -22,7 +24,7 @@ export default function PrioritiesPreviewPage() {
     <PreviewShell>
       <PageContainer className="max-w-[1180px]">
         <PageHeader title="Mes priorités" description={`${rows.length} dossiers à relancer (aperçu avec le jeu d'exemple)`} />
-        <PriorityList rows={rows.map((row) => ({ ...row, explanation: explainScore(row, context) }))} onStatusChange={updateProspectStatus} />
+        <PriorityList rows={rows.map((row) => ({ ...row, explanation: explainScore(row, context, undefined, locale) }))} onStatusChange={updateProspectStatus} />
       </PageContainer>
     </PreviewShell>
   );

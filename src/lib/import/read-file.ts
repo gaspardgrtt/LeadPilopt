@@ -1,3 +1,5 @@
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 import Papa from "papaparse";
 
 import { MAX_FILE_BYTES, MAX_ROWS } from "./fields";
@@ -14,19 +16,20 @@ export class ImportFileError extends Error {}
  * Lit un CSV dans le navigateur : séparateur détecté (« , », « ; », tabulation, « | »),
  * encodage UTF-8 ou Windows-1252 (exports Excel français), BOM ignoré.
  */
-export async function readCsvFile(file: File): Promise<ParsedFile> {
+export async function readCsvFile(file: File, locale: Langue = "fr"): Promise<ParsedFile> {
+  const t = getMessages(locale).import.errors;
   // L'extension prime sur le type annoncé par le navigateur, souvent approximatif.
   const extension = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "";
   const looksLikeCsv = extension ? ["csv", "txt"].includes(extension) : /csv|text\/plain/.test(file.type);
   if (!looksLikeCsv) {
     throw new ImportFileError(
       extension === "xlsx" || extension === "xls"
-        ? "Les fichiers Excel ne sont pas acceptés : dans Excel, utilisez Fichier > Enregistrer sous > CSV."
-        : "Ce fichier n'est pas un CSV. Exportez vos prospects au format CSV depuis votre CRM ou Excel."
+        ? t.excel
+        : t.notCsv
     );
   }
-  if (file.size === 0) throw new ImportFileError("Le fichier est vide.");
-  if (file.size > MAX_FILE_BYTES) throw new ImportFileError("Le fichier dépasse 10 Mo.");
+  if (file.size === 0) throw new ImportFileError(t.empty);
+  if (file.size > MAX_FILE_BYTES) throw new ImportFileError(t.tooBig);
 
   const buffer = await file.arrayBuffer();
   let text: string;
@@ -46,12 +49,12 @@ export async function readCsvFile(file: File): Promise<ParsedFile> {
 
   const headers = (result.meta.fields ?? []).filter((header) => header.length > 0);
   if (headers.length < 2) {
-    throw new ImportFileError("Le fichier doit contenir une ligne d'en-têtes et au moins 2 colonnes.");
+    throw new ImportFileError(t.noHeader);
   }
   const records = result.data.filter((record) => Object.values(record).some((value) => value?.trim()));
-  if (records.length === 0) throw new ImportFileError("Le fichier ne contient aucune ligne de données.");
+  if (records.length === 0) throw new ImportFileError(t.noRows);
   if (records.length > MAX_ROWS) {
-    throw new ImportFileError(`Le fichier contient ${records.length} lignes : la limite est de ${MAX_ROWS} par import.`);
+    throw new ImportFileError(t.tooManyRows(records.length, MAX_ROWS));
   }
 
   return { name: file.name, headers, records };

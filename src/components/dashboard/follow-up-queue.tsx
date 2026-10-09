@@ -7,8 +7,8 @@ import { ChevronRightIcon } from "lucide-react";
 import { InitialsAvatar } from "@/components/shared/initials-avatar";
 import { SilenceDays } from "@/components/shared/silence-days";
 import type { ProspectRow } from "@/components/shared/prospect-table";
-import { daysSince, formatEuro } from "@/lib/format";
-import { STAGE_LABELS } from "@/lib/prospects";
+import { daysSince } from "@/lib/format";
+import { useFormat, useT } from "@/i18n/client";
 
 import { ScoreRing } from "./score-ring";
 
@@ -18,6 +18,8 @@ import { ScoreRing } from "./score-ring";
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function FollowUpQueue({ rows, startRank }: { rows: ProspectRow[]; startRank: number }) {
+  const t = useT();
+  const format = useFormat();
   return (
     <ol className="flex flex-col">
       {rows.map((row, index) => (
@@ -38,7 +40,7 @@ export function FollowUpQueue({ rows, startRank }: { rows: ProspectRow[]; startR
             <span className="min-w-0 flex-1">
               <span className="block truncate text-body font-semibold text-foreground">{row.entreprise}</span>
               <span className="block truncate text-dense text-foreground-secondary">
-                {[row.contact_nom, row.etape ? STAGE_LABELS[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
               </span>
               {row.date_dernier_contact && (
                 <span className="mt-1.5 block sm:hidden">
@@ -51,7 +53,7 @@ export function FollowUpQueue({ rows, startRank }: { rows: ProspectRow[]; startR
             </span>
             <span className="hidden sm:block">{row.score !== null && <ScoreRing score={row.score} explanation={row.explanation} />}</span>
             <span className="shrink-0 text-right text-body sm:w-24 font-semibold text-foreground tabular-nums">
-              {row.ca_recuperable_eur === null ? "—" : formatEuro(row.ca_recuperable_eur)}
+              {row.ca_recuperable_eur === null ? "—" : format.euro(row.ca_recuperable_eur)}
             </span>
             <ChevronRightIcon
               className="size-4 shrink-0 text-foreground-tertiary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary"

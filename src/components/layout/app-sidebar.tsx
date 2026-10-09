@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/shared/field";
 import { signOut } from "@/lib/auth/actions";
 import { updateDisplayName } from "@/app/(app)/actions";
+import { useT } from "@/i18n/client";
 
 // Barre latérale : fond ardoise profond avec halo indigo, logo lumineux et badge Beta, navigation
 // en 3 groupes, pastille active animée (filet dégradé à gauche), compte en pied séparé par un filet.
@@ -48,9 +49,10 @@ function NavGroups({
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const t = useT();
 
   return (
-    <nav className="flex flex-col gap-5" aria-label="Navigation principale">
+    <nav className="flex flex-col gap-5" aria-label={t.nav.main}>
       {NAV_GROUPS.map((group) => ({
         ...group,
         items: group.items.filter((item) => !item.hidden),
@@ -59,7 +61,7 @@ function NavGroups({
         .map((group) => (
           <div key={group.label}>
             <p className="mb-1.5 px-3 text-[11px] leading-4 font-semibold tracking-[0.08em] text-sidebar-muted uppercase">
-              {group.label}
+              {t.nav.groups[group.label]}
             </p>
             <ul className="flex flex-col gap-0.5">
               {group.items.map((item) => {
@@ -76,10 +78,10 @@ function NavGroups({
                           aria-hidden
                         />
                         <span className="min-w-0 flex-1 break-words">
-                          {item.label}
+                          {t.nav.items[item.label]}
                         </span>
                         <span className="shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] leading-4 font-semibold text-sidebar-foreground">
-                          Bientôt
+                          {t.common.soon}
                         </span>
                       </span>
                     </li>
@@ -127,7 +129,7 @@ function NavGroups({
                         aria-hidden
                       />
                       <span className="min-w-0 flex-1 break-words">
-                        {item.label}
+                        {t.nav.items[item.label]}
                       </span>
                       {count !== undefined && (
                         <span className="rounded-full bg-white/10 px-2 py-0.5 text-caption font-medium text-sidebar-foreground-active tabular-nums">
@@ -155,6 +157,7 @@ export type SidebarUser = {
 /** Saisie du prénom et du nom affichés (colonne `utilisateurs.nom`). */
 export function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; open: boolean; onOpenChange: (open: boolean) => void }) {
   const router = useRouter();
+  const t = useT();
   const [firstName, lastName] = user.needsName ? ["", ""] : [user.name.split(" ")[0], user.name.split(" ").slice(1).join(" ")];
   const [error, setError] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
@@ -163,8 +166,8 @@ export function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; op
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Votre prénom et votre nom</DialogTitle>
-          <DialogDescription>Affichés dans le menu et dans la salutation du dashboard.</DialogDescription>
+          <DialogTitle>{t.account.nameDialogTitle}</DialogTitle>
+          <DialogDescription>{t.account.nameDialogDescription}</DialogDescription>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -179,22 +182,22 @@ export function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; op
               }
               setError(null);
               onOpenChange(false);
-              toast.success("Nom enregistré");
+              toast.success(t.account.nameSaved);
               router.refresh();
             });
           }}
         >
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Prénom" htmlFor="compte-prenom" error={error ?? undefined}>
+            <Field label={t.account.firstName} htmlFor="compte-prenom" error={error ?? undefined}>
               <Input id="compte-prenom" name="prenom" defaultValue={firstName} autoComplete="given-name" autoFocus maxLength={60} />
             </Field>
-            <Field label="Nom" htmlFor="compte-nom">
+            <Field label={t.account.lastName} htmlFor="compte-nom">
               <Input id="compte-nom" name="nom" defaultValue={lastName} autoComplete="family-name" maxLength={60} />
             </Field>
           </div>
           <DialogFooter>
             <Button type="submit" loading={pending}>
-              Enregistrer
+              {t.common.save}
             </Button>
           </DialogFooter>
         </form>
@@ -204,6 +207,7 @@ export function NameDialog({ user, open, onOpenChange }: { user: SidebarUser; op
 }
 
 function AccountMenu({ user }: { user: SidebarUser }) {
+  const t = useT();
   const [signingOut, startSignOut] = React.useTransition();
   const [editing, setEditing] = React.useState(false);
   return (
@@ -219,11 +223,11 @@ function AccountMenu({ user }: { user: SidebarUser }) {
         <DropdownMenuContent side="top" align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
           <DropdownMenuItem onSelect={() => setEditing(true)}>
             <UserPenIcon />
-            {user.needsName ? "Ajouter mon prénom et nom" : "Modifier mon nom"}
+            {user.needsName ? t.account.addName : t.account.editName}
           </DropdownMenuItem>
           <DropdownMenuItem disabled={signingOut} onSelect={() => startSignOut(() => signOut())}>
             <LogOutIcon />
-            Se déconnecter
+            {t.account.signOut}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -253,6 +257,7 @@ function SidebarBackdrop() {
 }
 
 function Brand() {
+  const t = useT();
   return (
     <div className="flex h-[72px] shrink-0 items-center gap-2.5 px-5">
       <Link
@@ -266,7 +271,7 @@ function Brand() {
         <Logo inverted />
       </Link>
       <span className="rounded-full border border-white/15 bg-gradient-to-r from-primary/30 to-accent-violet/30 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white/90 uppercase">
-        Beta
+        {t.common.beta}
       </span>
     </div>
   );
@@ -292,6 +297,7 @@ export function AppSidebar({ counts, user }: AppSidebarProps) {
 /** Barre compacte sous 768 px : logo, rubrique en cours et menu en tiroir (mêmes groupes). */
 export function MobileNav({ counts, user }: AppSidebarProps = {}) {
   const pathname = usePathname();
+  const t = useT();
   const [open, setOpen] = React.useState(false);
   const current = NAV_ITEMS.find((item) => isActive(pathname, item.href));
 
@@ -300,16 +306,16 @@ export function MobileNav({ counts, user }: AppSidebarProps = {}) {
       <div className="sticky top-0 z-30 flex h-14 items-center gap-3 bg-sidebar px-4 pt-[env(safe-area-inset-top,0px)] md:hidden">
         <Link
           href="/tableau-de-bord"
-          aria-label="Dashboard"
+          aria-label={t.nav.items.dashboard}
           className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40"
         >
           <Logo compact />
         </Link>
         <span className="min-w-0 flex-1 truncate text-body font-semibold text-sidebar-foreground-active">
-          {current?.label}
+          {current ? t.nav.items[current.label] : null}
         </span>
         <DialogPrimitive.Trigger
-          aria-label="Ouvrir le menu"
+          aria-label={t.nav.openMenu}
           className="flex size-10 items-center justify-center rounded-lg text-sidebar-foreground outline-none hover:bg-sidebar-hover focus-visible:ring-[3px] focus-visible:ring-primary/40"
         >
           <MenuIcon className="size-5" aria-hidden />
@@ -319,16 +325,16 @@ export function MobileNav({ counts, user }: AppSidebarProps = {}) {
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden" />
         <DialogPrimitive.Content className="fixed inset-y-0 left-0 isolate z-50 flex w-[86vw] max-w-[320px] flex-col overflow-hidden bg-sidebar outline-none data-[state=closed]:animate-out data-[state=closed]:slide-out-to-left data-[state=open]:animate-in data-[state=open]:slide-in-from-left md:hidden">
           <DialogPrimitive.Title className="sr-only">
-            Menu
+            {t.nav.menu}
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
-            Navigation de LeadPilot
+            {t.nav.menuDescription}
           </DialogPrimitive.Description>
           <SidebarBackdrop />
           <div className="flex items-center justify-between pr-3">
             <Brand />
             <DialogPrimitive.Close
-              aria-label="Fermer le menu"
+              aria-label={t.nav.closeMenu}
               className="flex size-10 items-center justify-center rounded-lg text-sidebar-foreground outline-none hover:bg-sidebar-hover focus-visible:ring-[3px] focus-visible:ring-primary/40"
             >
               <XIcon className="size-5" aria-hidden />

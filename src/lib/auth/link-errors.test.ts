@@ -9,6 +9,7 @@ describe("messages d'échec du lien", () => {
     expect(linkErrorMessage("autre-navigateur")).toContain("navigateur où vous l'avez demandé");
     expect(linkErrorMessage("<script>")).toBeNull();
     expect(linkErrorMessage(undefined)).toBeNull();
+    expect(linkErrorMessage("autre-navigateur", "en")).toContain("browser where you requested it");
   });
 
   it("traduit les codes Supabase", () => {

@@ -6,7 +6,7 @@ import { ArrowRightIcon, PencilIcon, PlusIcon, SparklesIcon, SunIcon, XIcon } fr
 
 import type { ProspectRow } from "@/components/shared/prospect-table";
 import type { MorningBrief } from "@/lib/brief/brief";
-import { formatEuro, formatInteger } from "@/lib/format";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 
 import { WhyPriority } from "@/components/score/why-priority";
 
@@ -37,18 +37,21 @@ export function MorningBriefPanel({
   brief,
   priorities,
 }: MorningBriefPanelProps) {
-  const rateLabel = commissionRate === null ? "" : `${String(commissionRate).replace(".", ",")} %`;
+  const t = useT();
+  const format = useFormat();
+  const locale = useLocale();
+  const rateLabel =
+    commissionRate === null ? "" : locale === "en" ? `${commissionRate}%` : `${String(commissionRate).replace(".", ",")} %`;
   const commissionLine =
     brief.commission !== null ? (
       <>
-        dont <span className="font-semibold text-foreground tabular-nums">{formatEuro(brief.commission)}</span> de commission
-        potentielle ({rateLabel})
+        {t.brief.commission(format.euro(brief.commission), rateLabel)}
         {commissionEditable && <PencilIcon className="size-3" aria-hidden />}
       </>
     ) : commissionEditable ? (
       <>
         <PlusIcon className="size-3.5" aria-hidden />
-        Afficher ma commission potentielle
+        {t.brief.showCommission}
       </>
     ) : null;
 
@@ -60,7 +63,7 @@ export function MorningBriefPanel({
           className="inline-flex h-9 items-center gap-2 rounded-lg bg-surface px-3 text-dense font-semibold text-foreground shadow-card ring-1 ring-border outline-none transition-colors hover:bg-surface-subtle focus-visible:ring-[3px] focus-visible:ring-primary/25"
         >
           <SunIcon className="size-4 text-warning" aria-hidden />
-          Brief du matin
+          {t.brief.button}
         </button>
       </DialogPrimitive.Trigger>
       <DialogPrimitive.Portal>
@@ -70,14 +73,14 @@ export function MorningBriefPanel({
             <div>
               <p className="inline-flex items-center gap-1.5 text-caption font-semibold text-foreground-secondary">
                 <SunIcon className="size-3.5 text-warning" aria-hidden />
-                Brief du matin · <span className="first-letter:uppercase">{todayLabel}</span>
+                {t.brief.button} · <span className="first-letter:uppercase">{todayLabel}</span>
               </p>
               <DialogPrimitive.Title className="mt-1 text-[18px] leading-7 font-semibold text-foreground">
-                Bonjour {firstName || "à vous"},
+                {t.brief.greeting(firstName)}
               </DialogPrimitive.Title>
             </div>
             <DialogPrimitive.Close
-              aria-label="Fermer le brief"
+              aria-label={t.brief.close}
               className="flex size-8 shrink-0 items-center justify-center rounded-lg text-foreground-tertiary outline-none hover:bg-surface-subtle hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-primary/25"
             >
               <XIcon className="size-4" aria-hidden />
@@ -86,9 +89,9 @@ export function MorningBriefPanel({
 
           <div className="flex flex-col gap-5 px-6 py-5">
             <section>
-              <p className="text-[34px] leading-10 font-bold tracking-[-0.03em] text-foreground tabular-nums">{formatEuro(recoverable)}</p>
+              <p className="text-[34px] leading-10 font-bold tracking-[-0.03em] text-foreground tabular-nums">{format.euro(recoverable)}</p>
               <DialogPrimitive.Description className="text-body text-foreground-secondary">
-                d&apos;argent récupérable aujourd&apos;hui · {formatInteger(toFollowUp)} {brief.toFollowUpLabel}
+                {t.brief.recoverableToday} · {format.integer(toFollowUp)} {brief.toFollowUpLabel}
               </DialogPrimitive.Description>
               {commissionLine &&
                 (commissionEditable ? (
@@ -111,7 +114,7 @@ export function MorningBriefPanel({
             <section className="rounded-xl border border-primary/15 bg-primary-soft/60 p-4">
               <p className="inline-flex items-center gap-1.5 text-caption font-semibold tracking-wide text-primary uppercase">
                 <SparklesIcon className="size-3.5" aria-hidden />
-                Action du jour
+                {t.brief.actionOfTheDay}
               </p>
               {brief.action ? (
                 <>
@@ -129,8 +132,8 @@ export function MorningBriefPanel({
               ) : (
                 <p className="mt-1.5 text-body font-medium text-foreground">
                   {brief.state === "all_done"
-                    ? "Bravo, toutes les relances du jour sont préparées."
-                    : "Tout est à jour : aucune opportunité à relancer aujourd'hui."}
+                    ? t.brief.allDone
+                    : t.brief.nothingToDo}
                 </p>
               )}
               {brief.progress && (
@@ -141,7 +144,7 @@ export function MorningBriefPanel({
                     aria-valuemin={0}
                     aria-valuemax={brief.progress.total}
                     aria-valuenow={brief.progress.done}
-                    aria-label="Progression du jour"
+                    aria-label={t.brief.progressLabel}
                   >
                     <div className="h-full rounded-full bg-success" style={{ width: `${(brief.progress.done / brief.progress.total) * 100}%` }} />
                   </div>
@@ -152,7 +155,7 @@ export function MorningBriefPanel({
 
             {priorities.length > 0 && (
               <section>
-                <h3 className="text-body font-semibold text-foreground">Pourquoi prioritaire ?</h3>
+                <h3 className="text-body font-semibold text-foreground">{t.brief.whyPriority}</h3>
                 <ol className="mt-2 flex flex-col divide-y rounded-xl border bg-surface">
                   {priorities.map((row, index) => {
                     const explanation = row.explanation?.kind === "scored" ? row.explanation : null;
@@ -168,7 +171,7 @@ export function MorningBriefPanel({
                               <span className="text-foreground-tertiary tabular-nums">#{index + 1}</span> {row.entreprise}
                             </span>
                             <span className="shrink-0 text-body font-semibold text-foreground tabular-nums">
-                              {amount === null ? "—" : formatEuro(amount)}
+                              {amount === null ? "—" : format.euro(amount)}
                             </span>
                           </Link>
                         </DialogPrimitive.Close>

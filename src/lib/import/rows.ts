@@ -1,3 +1,5 @@
+import type { Langue } from "@/lib/preferences/preferences";
+import { getMessages } from "@/i18n";
 import { DEAL_STAGES, type DealStage } from "@/lib/prospects";
 
 import {
@@ -68,7 +70,7 @@ export function missingRequiredFields(mapping: ColumnMapping): ImportFieldKey[] 
 }
 
 /** Construit les lignes à importer à partir des enregistrements du fichier (ligne 1 = en-têtes). */
-export function buildImportRows(records: Record<string, string>[], mapping: ColumnMapping): ImportPreview {
+export function buildImportRows(records: Record<string, string>[], mapping: ColumnMapping, locale: Langue = "fr"): ImportPreview {
   const get = (record: Record<string, string>, key: ImportFieldKey) => {
     const column = mapping[key];
     return column ? record[column] : undefined;
@@ -84,15 +86,15 @@ export function buildImportRows(records: Record<string, string>[], mapping: Colu
     const entreprise = cleanText(get(record, "entreprise"), 200);
     if (!entreprise) {
       if (Object.values(record).some((value) => value?.trim())) {
-        skipped.push({ line, message: "Entreprise manquante : ligne ignorée" });
+        skipped.push({ line, message: getMessages(locale).import.errors.missingCompany });
       }
       return;
     }
 
-    const email = parseEmail(get(record, "email"));
-    const phone = parsePhone(get(record, "telephone"));
-    const amount = parseAmount(get(record, "montant"));
-    const date = parseDate(get(record, "dernier_contact"));
+    const email = parseEmail(get(record, "email"), locale);
+    const phone = parsePhone(get(record, "telephone"), locale);
+    const amount = parseAmount(get(record, "montant"), locale);
+    const date = parseDate(get(record, "dernier_contact"), locale);
     const stage = parseStage(get(record, "statut"));
     for (const parsed of [email, phone, amount, date]) {
       if (parsed.error) warnings.push({ line, message: parsed.error });
