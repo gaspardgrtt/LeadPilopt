@@ -168,14 +168,14 @@ export type Database = {
           email: string
           entreprise: string | null
           id: string
+          langue: string
           maj_le: string
           nom: string | null
           panier_moyen_eur: number | null
           seuil_inactivite_jours: number
           signature: string | null
-          theme: string
-          langue: string
           taux_commission: number | null
+          theme: string
           ton_relance: Database["public"]["Enums"]["ton_relance"]
         }
         Insert: {
@@ -183,14 +183,14 @@ export type Database = {
           email: string
           entreprise?: string | null
           id: string
+          langue?: string
           maj_le?: string
           nom?: string | null
           panier_moyen_eur?: number | null
           seuil_inactivite_jours?: number
           signature?: string | null
-          theme?: string
-          langue?: string
           taux_commission?: number | null
+          theme?: string
           ton_relance?: Database["public"]["Enums"]["ton_relance"]
         }
         Update: {
@@ -198,14 +198,14 @@ export type Database = {
           email?: string
           entreprise?: string | null
           id?: string
+          langue?: string
           maj_le?: string
           nom?: string | null
           panier_moyen_eur?: number | null
           seuil_inactivite_jours?: number
           signature?: string | null
-          theme?: string
-          langue?: string
           taux_commission?: number | null
+          theme?: string
           ton_relance?: Database["public"]["Enums"]["ton_relance"]
         }
         Relationships: []
