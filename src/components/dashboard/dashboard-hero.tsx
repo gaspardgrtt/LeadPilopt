@@ -24,7 +24,7 @@ type DashboardHeroProps = {
   nbOublies: number;
   nbAffairesOuvertes: number;
   caRecupere: number;
-  weekly: { generated: number; copied: number };
+  weekly: { prepared: number; copied: number; done: number };
   /** Seuil d'inactivité du compte (jours sans contact avant qu'une affaire soit oubliée). */
   threshold: number;
   /** Fiche du premier prospect à relancer, ou la liste s'il n'y en a pas. */
@@ -178,9 +178,18 @@ export function DashboardHero({
                 <CountUp value={caRecupere} format={format.euro} className="font-semibold text-on-dark-positive tabular-nums" />
               </dd>
             </div>
+            <div className="pt-1 text-caption tracking-wide text-hero-muted uppercase">{t.dashboard.last7Days}</div>
             <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-hero-muted">{t.dashboard.followupsWeek}</dt>
-              <dd className="font-semibold tabular-nums">{format.integer(weekly.copied)}</dd>
+              <dt className="text-hero-muted">{t.dashboard.followupsDoneWeek}</dt>
+              <dd className="font-semibold tabular-nums">{format.integer(weekly.done)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-hero-muted">{t.dashboard.followupsCopiedWeek}</dt>
+              <dd className="tabular-nums text-hero-muted">{format.integer(weekly.copied)}</dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-hero-muted">{t.dashboard.followupsPreparedWeek}</dt>
+              <dd className="tabular-nums text-hero-muted">{format.integer(weekly.prepared)}</dd>
             </div>
           </dl>
         </motion.div>

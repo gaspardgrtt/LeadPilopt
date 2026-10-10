@@ -53,10 +53,24 @@ function table(name: keyof typeof db) {
   return builder;
 }
 
+// Fonction SQL enregistrer_contact simulée : appelée seulement quand un contact est confirmé.
+const rpcCalls: { fn: string; args: Row }[] = [];
+async function rpc(fn: string, args: Row) {
+  rpcCalls.push({ fn, args });
+  if (fn === "enregistrer_contact") {
+    const prospect = db.prospects.find((row) => row.id === args.p_prospect && row.utilisateur_id === currentUser);
+    if (!prospect) return { data: null, error: { code: "P0002" } };
+    if (prospect.statut === "a_traiter") prospect.statut = "relance";
+    prospect.date_dernier_contact = String(args.p_le).slice(0, 10);
+  }
+  return { data: null, error: null };
+}
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({
     auth: { getClaims: async () => ({ data: currentUser ? { claims: { sub: currentUser } } : null }) },
     from: (name: keyof typeof db) => table(name),
+    rpc,
   }),
 }));
 
@@ -99,6 +113,7 @@ const valid = { relanceId: RELANCE, objet: "Prochaines étapes · Nordwind GmbH"
 beforeEach(() => {
   currentUser = "user-a";
   configured = true;
+  rpcCalls.length = 0;
   senderCheck.mockClear();
   senderCheck.mockResolvedValue({ ok: true });
   fetchMock.mockReset();
@@ -112,6 +127,7 @@ beforeEach(() => {
       contact_nom: "Jonas Weber",
       contact_email: "jonas@nordwind.de",
       statut: "a_traiter",
+      date_dernier_contact: "2026-08-25",
       opposition_prospection_le: null,
     },
   ];
@@ -120,6 +136,7 @@ beforeEach(() => {
       id: RELANCE,
       utilisateur_id: "user-a",
       prospect_id: PROSPECT,
+      type: "brouillon",
       objet: valid.objet,
       corps: valid.corps,
       copiee_le: null,
@@ -150,6 +167,40 @@ describe("POST /api/relances/envoyer", () => {
       brevo_message_id: "<msg-1@smtp-relay.mailin.fr>",
     });
     expect(db.prospects[0].statut).toBe("relance");
+    // Le contact est enregistré une seule fois, au moment exact de l'envoi confirmé par Brevo.
+    expect(rpcCalls).toEqual([{ fn: "enregistrer_contact", args: { p_prospect: PROSPECT, p_le: db.relances[0].envoyee_le } }]);
+    expect(db.prospects[0].date_dernier_contact).toBe(String(db.relances[0].envoyee_le).slice(0, 10));
+  });
+
+  it("échec Brevo : aucun contact enregistré, dossier inchangé", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ code: "x" }), { status: 400 }));
+    expect((await POST(request(valid))).status).toBe(502);
+    expect(rpcCalls).toEqual([]);
+    expect(db.prospects[0]).toMatchObject({ statut: "a_traiter", date_dernier_contact: "2026-08-25" });
+    expect(db.relances[0]).toMatchObject({ envoi_statut: "echec" });
+    expect(db.relances[0].envoyee_le).toBeUndefined();
+  });
+
+  it("coupure réseau pendant l'envoi : rien n'est présenté comme envoyé ni compté comme contact", async () => {
+    fetchMock.mockRejectedValueOnce(new Error("timeout"));
+    expect((await POST(request(valid))).status).toBe(502);
+    expect(rpcCalls).toEqual([]);
+    expect(db.relances[0].envoi_statut).toBe("echec");
+    expect(db.prospects[0].date_dernier_contact).toBe("2026-08-25");
+  });
+
+  it("nouvelle tentative après un envoi réussi : refusée, aucun contact en double", async () => {
+    expect((await POST(request(valid))).status).toBe(200);
+    expect((await POST(request(valid))).status).toBe(409);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(rpcCalls).toHaveLength(1);
+  });
+
+  it("refuse d'envoyer une ligne qui n'est pas un brouillon (activité de l'historique)", async () => {
+    db.relances[0].type = "relance";
+    expect((await POST(request(valid))).status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(rpcCalls).toEqual([]);
   });
 
   it("refuse une requête venant d'un autre site ou sans session", async () => {

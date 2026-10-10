@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/types/database";
 import { requireUser } from "@/lib/auth/session";
 import { DEAL_STAGES, FOLLOWUP_TONES, isProspectStatus, type DealStage, type FollowupTone } from "@/lib/prospects";
 import { isFollowupScenario, renderFollowup, scenarioTag, type FollowupScenario } from "@/lib/followups/templates";
@@ -21,6 +22,15 @@ import {
 } from "@/lib/preferences/preferences";
 import { getBrevoSenderIdentity } from "@/lib/brevo/config";
 import { buildEmailContent, checkEmailContent, isValidEmail } from "@/lib/followups/email";
+import {
+  CHANNELS_BY_TYPE,
+  activityTimestamp,
+  isActivityType,
+  isChannel,
+  isNextActionChoice,
+  nextActionDate,
+  type ActivityType,
+} from "@/lib/activity/activity";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -104,6 +114,7 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
     .select("*")
     .eq("utilisateur_id", user.id)
     .eq("id", relanceId)
+    .eq("type", "brouillon")
     .maybeSingle();
   if (readError) {
     console.error("[relances] lecture impossible", { code: readError.code });
@@ -118,6 +129,7 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
     .update({ objet, corps })
     .eq("utilisateur_id", user.id)
     .eq("id", relanceId)
+    .eq("type", "brouillon")
     .select("id");
 
   if (error) {
@@ -128,7 +140,10 @@ export async function saveFollowupDraft(relanceId: string, subject: string, body
   return { ok: true };
 }
 
-/** Horodate la copie d'une relance (mesure de l'usage réel, `copiee_le`). */
+/**
+ * Horodate la copie ou l'ouverture dans Gmail d'un brouillon (`copiee_le`). Ce n'est pas un envoi :
+ * ni la date de dernier contact ni le statut du dossier ne changent (aucun envoi n'est vérifiable).
+ */
 export async function markFollowupCopied(relanceId: string): Promise<ActionResult> {
   const { t } = await getI18n();
   if (!isUuid(relanceId)) return { ok: false, message: t.actions.invalidRequest };
@@ -139,6 +154,7 @@ export async function markFollowupCopied(relanceId: string): Promise<ActionResul
     .update({ copiee_le: new Date().toISOString() })
     .eq("utilisateur_id", user.id)
     .eq("id", relanceId)
+    .eq("type", "brouillon")
     .select("id");
 
   if (error) {
@@ -222,6 +238,7 @@ export async function prepareFollowup(
       .select("*")
       .eq("utilisateur_id", user.id)
       .eq("prospect_id", prospectId)
+      .eq("type", "brouillon")
       .order("cree_le", { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -286,6 +303,7 @@ export async function getEmailPreview(
     .select("*")
     .eq("utilisateur_id", user.id)
     .eq("id", relanceId)
+    .eq("type", "brouillon")
     .maybeSingle();
   if (error) return { ok: false, message: t.actions.generic };
   if (!relance) return { ok: false, message: t.actions.followupGone };
@@ -388,4 +406,150 @@ export async function updatePreferences(input: { theme?: unknown; langue?: unkno
   if (values.langue) cookieStore.set(LANGUE_COOKIE, values.langue, cookieOptions);
   revalidateProspectViews();
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------- activités
+
+type EnregistrerActiviteArgs = Database["public"]["Functions"]["enregistrer_activite"]["Args"];
+
+/**
+ * Paramètres de la fonction SQL `enregistrer_activite`. Le générateur de types Supabase ne sait pas
+ * qu'un paramètre de fonction peut être null : il déclare canal, résumé et prochaine action en
+ * `string`. La fonction SQL accepte bien null (activité sans canal, sans résumé, sans prochaine
+ * action), ce que vérifient les tests de base de données.
+ */
+function activiteArgs(args: Omit<EnregistrerActiviteArgs, "p_canal" | "p_resume" | "p_prochaine_action"> & {
+  p_canal: string | null;
+  p_resume: string | null;
+  p_prochaine_action: string | null;
+}): EnregistrerActiviteArgs {
+  return args as EnregistrerActiviteArgs;
+}
+
+export type ActivityInput = {
+  /** Identifiant généré par le navigateur : une nouvelle tentative ne crée pas de doublon. */
+  id: string;
+  prospectId: string;
+  type: string;
+  channel: string | null;
+  summary: string;
+  /** « maintenant », « hier » ou une date AAAA-MM-JJ (passée ou du jour). */
+  when: string;
+  /** Choix de prochaine action, ou null pour ne pas la modifier. */
+  next: string | null;
+  nextDate: string | null;
+};
+
+export type ActivityResult =
+  | { ok: true; created: boolean; contact: boolean; nextAction: string | null; nextChanged: boolean }
+  | { ok: false; message: string };
+
+/**
+ * Enregistre une activité réellement effectuée (relance, appel, message, note) dans l'historique
+ * du dossier. Une relance, un appel ou un message avancent la date de dernier contact, passent le
+ * dossier « À traiter » en « Relancé » et recalculent les priorités ; une note ne change rien.
+ * Tout est fait dans une seule fonction SQL (une transaction, droits de l'utilisateur, RLS).
+ */
+export async function recordActivity(input: ActivityInput): Promise<ActivityResult> {
+  const { t } = await getI18n();
+  if (!isUuid(input.id) || !isUuid(input.prospectId) || !isActivityType(input.type)) {
+    return { ok: false, message: t.actions.invalidRequest };
+  }
+  const type: ActivityType = input.type;
+  const allowed = CHANNELS_BY_TYPE[type];
+  const channel = allowed.length === 0 ? null : input.channel;
+  if (allowed.length > 0 && (!isChannel(channel) || !allowed.includes(channel))) {
+    return { ok: false, message: t.activity.errors.invalid };
+  }
+  const summary = (input.summary ?? "").trim();
+  if (summary.length > 2000) return { ok: false, message: t.activity.errors.invalid };
+  if (type === "note" && !summary) return { ok: false, message: t.activity.dialog.noteRequired };
+  const at = activityTimestamp(input.when);
+  if (at === "invalide") return { ok: false, message: t.activity.dialog.errorDate };
+  let nextAction: string | null = null;
+  const modifyNext = input.next !== null;
+  if (modifyNext) {
+    if (!isNextActionChoice(input.next)) return { ok: false, message: t.activity.errors.invalid };
+    const date = nextActionDate(input.next, input.nextDate);
+    if (date === "invalide") return { ok: false, message: t.activity.dialog.errorNextDate };
+    nextAction = date;
+  }
+
+  await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(
+    "enregistrer_activite",
+    activiteArgs({
+      p_id: input.id,
+      p_prospect: input.prospectId,
+      p_type: type,
+      p_canal: channel,
+      p_resume: summary || null,
+      p_effectuee_le: at,
+      p_prochaine_action: nextAction,
+      p_modifier_prochaine: modifyNext,
+    })
+  );
+  if (error) {
+    console.error("[activités] enregistrement impossible", { code: error.code });
+    if (error.code === "P0001") return { ok: false, message: t.activity.errors.opposition };
+    if (error.code === "23503" || error.code === "P0002") return { ok: false, message: t.actions.prospectGone };
+    if (error.code === "22023" || error.code === "23514") return { ok: false, message: t.activity.errors.invalid };
+    return { ok: false, message: t.actions.generic };
+  }
+  revalidateProspectViews();
+  return { ok: true, created: data === true, contact: type !== "note", nextAction, nextChanged: modifyNext };
+}
+
+/**
+ * Programme (ou retire, avec « aucune ») la prochaine action d'un dossier, par exemple après un
+ * envoi par e-mail. Une date programmée est aussi tracée dans l'historique ; « aucune » ne crée
+ * aucun rappel fictif.
+ */
+export async function scheduleNextAction(input: { id: string; prospectId: string; next: string; nextDate: string | null }): Promise<ActivityResult> {
+  const { t } = await getI18n();
+  if (!isUuid(input.id) || !isUuid(input.prospectId) || !isNextActionChoice(input.next)) {
+    return { ok: false, message: t.actions.invalidRequest };
+  }
+  const date = nextActionDate(input.next, input.nextDate);
+  if (date === "invalide") return { ok: false, message: t.activity.dialog.errorNextDate };
+  const user = await requireUser();
+  const supabase = await createClient();
+
+  if (date === null) {
+    const { data, error } = await supabase
+      .from("prospects")
+      .update({ prochaine_action_le: null })
+      .eq("utilisateur_id", user.id)
+      .eq("id", input.prospectId)
+      .select("id");
+    if (error) {
+      console.error("[activités] suppression de la prochaine action impossible", { code: error.code });
+      return { ok: false, message: t.actions.generic };
+    }
+    if (!data.length) return { ok: false, message: t.actions.prospectGone };
+    revalidateProspectViews();
+    return { ok: true, created: false, contact: false, nextAction: null, nextChanged: true };
+  }
+
+  const { data, error } = await supabase.rpc(
+    "enregistrer_activite",
+    activiteArgs({
+      p_id: input.id,
+      p_prospect: input.prospectId,
+      p_type: "prochaine_action",
+      p_canal: null,
+      p_resume: null,
+      p_effectuee_le: new Date().toISOString(),
+      p_prochaine_action: date,
+      p_modifier_prochaine: true,
+    })
+  );
+  if (error) {
+    console.error("[activités] prochaine action impossible", { code: error.code });
+    if (error.code === "23503" || error.code === "P0002") return { ok: false, message: t.actions.prospectGone };
+    return { ok: false, message: t.actions.generic };
+  }
+  revalidateProspectViews();
+  return { ok: true, created: data === true, contact: false, nextAction: date, nextChanged: true };
 }

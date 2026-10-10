@@ -49,7 +49,7 @@ export function DashboardPreview() {
         importLabel={format.daysAgo(2)}
         threshold={21}
         stats={{ caRecuperable: 184300, nbOublies: 42, nbAffairesOuvertes: 318, caRecupere: 12000 }}
-        weekly={{ generated: 14, copied: 9 }}
+        weekly={{ prepared: 14, copied: 5, done: 4 }}
         brief={{ toFollowUp: 42, commissionRate: 4, commissionEditable: false, progress: { done: 3, total: 8 } }}
         top={SAMPLE_TOP.map((row) => ({ ...row, explanation: explainScore(row, SAMPLE_CONTEXT, undefined, format.locale) }))}
         silence={SAMPLE_BUCKETS}

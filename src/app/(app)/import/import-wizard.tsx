@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowLeftIcon, ArrowRightIcon, CircleAlertIcon, TriangleAlertIcon } from "lucide-react";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputWithSuffix } from "@/components/ui/input";
@@ -43,6 +44,7 @@ const MAPPING_STORAGE_PREFIX = "leadpilot:import-mapping:";
 
 type ImportWizardProps = {
   existingCount: number;
+  historyCount: number;
   defaults: { seuil: number; panier: number | null; ton: FollowupTone; signature: string; commission: number | null };
 };
 
@@ -69,7 +71,7 @@ function saveMapping(headers: string[], mapping: ColumnMapping) {
   }
 }
 
-export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
+export function ImportWizard({ existingCount, historyCount, defaults }: ImportWizardProps) {
   const t = useT();
   const locale = useLocale();
   const format = useFormat();
@@ -160,6 +162,7 @@ export function ImportWizard({ existingCount, defaults }: ImportWizardProps) {
         <SettingsStep
           rows={preview.rows}
           existingCount={existingCount}
+          historyCount={historyCount}
           defaults={{
             ...defaults,
             panier: defaults.panier ?? (preview.averageAmount ? Math.round(preview.averageAmount / 100) * 100 : null),
@@ -322,6 +325,7 @@ function MappingStep({ file, mapping, preview, onChange, onBack, onNext }: Mappi
 type SettingsStepProps = {
   rows: ReturnType<typeof buildImportRows>["rows"];
   existingCount: number;
+  historyCount: number;
   defaults: ImportWizardProps["defaults"];
   averageFromFile: number | null;
   onBack: () => void;
@@ -330,7 +334,7 @@ type SettingsStepProps = {
   onFailed: () => void;
 };
 
-function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, onStart, onDone, onFailed }: SettingsStepProps) {
+function SettingsStep({ rows, existingCount, historyCount, defaults, averageFromFile, onBack, onStart, onDone, onFailed }: SettingsStepProps) {
   const t = useT();
   const format = useFormat();
   const [seuil, setSeuil] = React.useState(String(defaults.seuil));
@@ -340,6 +344,8 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
   const [commission, setCommission] = React.useState(defaults.commission === null ? "" : String(defaults.commission).replace(".", ","));
   const [mode, setMode] = React.useState<"maj" | "remplacer">("maj");
   const [confirmReplace, setConfirmReplace] = React.useState(false);
+  // La suppression n'est possible qu'après avoir coché la case de l'avertissement.
+  const [replaceAcknowledged, setReplaceAcknowledged] = React.useState(false);
   const [progress, setProgress] = React.useState<{ done: number; total: number } | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const resumeFrom = React.useRef<{ importId: string; batch: number } | null>(null);
@@ -362,7 +368,7 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
       let importId = resumeFrom.current?.importId;
       let firstBatch = resumeFrom.current?.batch ?? 0;
       if (!importId) {
-        const started = await startImport(mode === "remplacer");
+        const started = await startImport(mode === "remplacer", mode === "remplacer" && replaceAcknowledged ? "supprimer-prospects-et-historique" : undefined);
         if (!started.ok) throw new Error(started.message);
         importId = started.importId;
         firstBatch = 0;
@@ -480,7 +486,7 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
             <p className="text-caption font-normal text-foreground-tertiary">
               {mode === "maj"
                 ? t.import.settings.updateHint
-                : t.import.settings.replaceHint}
+                : t.import.settings.replaceHint(format.integer(historyCount))}
             </p>
           </div>
         )}
@@ -492,7 +498,12 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
         </Button>
         <Button
           disabled={Boolean(seuilError || panierError || commissionError)}
-          onClick={() => (mode === "remplacer" && !resumeFrom.current ? setConfirmReplace(true) : void run())}
+          onClick={() => {
+            if (mode === "remplacer" && !resumeFrom.current) {
+              setReplaceAcknowledged(false);
+              setConfirmReplace(true);
+            } else void run();
+          }}
         >
           {resumeFrom.current ? t.import.settings.resume : t.import.settings.start}
           <ArrowRightIcon />
@@ -507,12 +518,23 @@ function SettingsStep({ rows, existingCount, defaults, averageFromFile, onBack, 
               {t.import.settings.replaceText(format.integer(existingCount), format.integer(rows.length))}
             </DialogDescription>
           </DialogHeader>
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-dense text-foreground">
+            <li>{t.import.settings.replaceLost.prospects(format.integer(existingCount))}</li>
+            <li>{t.import.settings.replaceLost.history(format.integer(historyCount))}</li>
+            <li>{t.import.settings.replaceLost.nextActions}</li>
+          </ul>
+          <p className="rounded-lg bg-warning-soft px-3.5 py-2.5 text-dense text-warning">{t.import.settings.replaceAdvice}</p>
+          <label className="flex cursor-pointer items-start gap-2.5 text-dense text-foreground">
+            <Checkbox checked={replaceAcknowledged} onCheckedChange={(value) => setReplaceAcknowledged(value === true)} className="mt-0.5" />
+            {t.import.settings.replaceAcknowledge}
+          </label>
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="secondary">{t.common.cancel}</Button>
             </DialogClose>
             <Button
               variant="danger"
+              disabled={!replaceAcknowledged}
               onClick={() => {
                 setConfirmReplace(false);
                 void run();

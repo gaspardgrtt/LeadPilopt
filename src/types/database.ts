@@ -38,6 +38,7 @@ export type Database = {
           notes: string | null
           opposition_prospection_le: string | null
           proba_recuperation: number | null
+          prochaine_action_le: string | null
           score: number | null
           statut: Database["public"]["Enums"]["statut_prospect"]
           utilisateur_id: string
@@ -62,6 +63,7 @@ export type Database = {
           notes?: string | null
           opposition_prospection_le?: string | null
           proba_recuperation?: number | null
+          prochaine_action_le?: string | null
           score?: number | null
           statut?: Database["public"]["Enums"]["statut_prospect"]
           utilisateur_id: string
@@ -86,6 +88,7 @@ export type Database = {
           notes?: string | null
           opposition_prospection_le?: string | null
           proba_recuperation?: number | null
+          prochaine_action_le?: string | null
           score?: number | null
           statut?: Database["public"]["Enums"]["statut_prospect"]
           utilisateur_id?: string
@@ -103,9 +106,11 @@ export type Database = {
       relances: {
         Row: {
           brevo_message_id: string | null
+          canal: string | null
           copiee_le: string | null
-          corps: string
+          corps: string | null
           cree_le: string
+          effectuee_le: string | null
           envoi_demande_le: string | null
           envoi_erreur: string | null
           envoi_statut: string | null
@@ -113,16 +118,21 @@ export type Database = {
           envoyee_le: string | null
           id: string
           modele_ia: string | null
-          objet: string
+          objet: string | null
+          prochaine_action_le: string | null
           prospect_id: string
-          ton: Database["public"]["Enums"]["ton_relance"]
+          resume: string | null
+          ton: Database["public"]["Enums"]["ton_relance"] | null
+          type: string
           utilisateur_id: string
         }
         Insert: {
           brevo_message_id?: string | null
+          canal?: string | null
           copiee_le?: string | null
-          corps: string
+          corps?: string | null
           cree_le?: string
+          effectuee_le?: string | null
           envoi_demande_le?: string | null
           envoi_erreur?: string | null
           envoi_statut?: string | null
@@ -130,16 +140,21 @@ export type Database = {
           envoyee_le?: string | null
           id?: string
           modele_ia?: string | null
-          objet: string
+          objet?: string | null
+          prochaine_action_le?: string | null
           prospect_id: string
-          ton: Database["public"]["Enums"]["ton_relance"]
+          resume?: string | null
+          ton?: Database["public"]["Enums"]["ton_relance"] | null
+          type?: string
           utilisateur_id: string
         }
         Update: {
           brevo_message_id?: string | null
+          canal?: string | null
           copiee_le?: string | null
-          corps?: string
+          corps?: string | null
           cree_le?: string
+          effectuee_le?: string | null
           envoi_demande_le?: string | null
           envoi_erreur?: string | null
           envoi_statut?: string | null
@@ -147,9 +162,12 @@ export type Database = {
           envoyee_le?: string | null
           id?: string
           modele_ia?: string | null
-          objet?: string
+          objet?: string | null
+          prochaine_action_le?: string | null
           prospect_id?: string
-          ton?: Database["public"]["Enums"]["ton_relance"]
+          resume?: string | null
+          ton?: Database["public"]["Enums"]["ton_relance"] | null
+          type?: string
           utilisateur_id?: string
         }
         Relationships: [
@@ -215,6 +233,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      enregistrer_activite: {
+        Args: {
+          p_canal: string
+          p_effectuee_le: string
+          p_id: string
+          p_modifier_prochaine: boolean
+          p_prochaine_action: string
+          p_prospect: string
+          p_resume: string
+          p_type: string
+        }
+        Returns: boolean
+      }
+      enregistrer_contact: {
+        Args: { p_le: string; p_prospect: string }
+        Returns: undefined
+      }
       recalculer_prospects: { Args: never; Returns: number }
       recalculer_prospects_de: {
         Args: { p_utilisateur: string }

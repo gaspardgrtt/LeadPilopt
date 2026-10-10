@@ -8,7 +8,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PriorityList } from "@/components/workspace/priority-list";
-import { getProspectCounts, getProspects, getScoreContext } from "@/lib/data/prospects";
+import { getNextActions, getProspectCounts, getProspects, getScoreContext } from "@/lib/data/prospects";
+import { NextActions } from "@/components/workspace/next-actions";
 import { explainScore } from "@/lib/scoring/score";
 
 import { updateProspectStatus } from "../actions";
@@ -19,10 +20,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // Espace de travail — dossiers oubliés à traiter, par argent récupérable, avec leur explication.
 export default async function PrioritiesPage() {
-  const [counts, rows, scoreContext] = await Promise.all([
+  const [counts, rows, scoreContext, nextActions] = await Promise.all([
     getProspectCounts(),
     getProspects({ view: "oublies", statuses: ["a_traiter"], sort: "ca" }),
     getScoreContext(),
+    getNextActions(),
   ]);
   const { t, locale, format } = await getI18n();
 
@@ -56,6 +58,7 @@ export default async function PrioritiesPage() {
             : t.workspace.priorities.description
         }
       />
+      <NextActions items={nextActions} />
       {rows.length > 0 ? (
         <PriorityList
           rows={rows.map((row) => ({ ...row, explanation: explainScore(row, scoreContext, undefined, locale) }))}

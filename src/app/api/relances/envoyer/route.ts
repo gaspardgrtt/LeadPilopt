@@ -56,9 +56,10 @@ export async function POST(request: NextRequest) {
     .select("*")
     .eq("utilisateur_id", userId)
     .eq("id", relanceId)
+    .eq("type", "brouillon")
     .maybeSingle();
   if (relanceError) return jsonError(500, t.sending.loadFollowupFailed);
-  if (!relance) return jsonError(404, t.actions.followupGone);
+  if (!relance || relance.objet === null || relance.corps === null) return jsonError(404, t.actions.followupGone);
 
   const [prospectResult, profilResult, recentResult] = await Promise.all([
     supabase
@@ -149,10 +150,11 @@ export async function POST(request: NextRequest) {
       .eq("id", relanceId);
     if (saveError) console.error("[envoi] e-mail envoyé mais statut non enregistré", { code: saveError.code });
 
-    // L'e-mail est réellement parti : le dossier passe en « Relancé » s'il était à traiter.
-    if (prospect.statut === "a_traiter") {
-      await supabase.from("prospects").update({ statut: "relance" }).eq("utilisateur_id", userId).eq("id", prospect.id);
-    }
+    // L'e-mail est réellement parti (accepté par Brevo) : c'est un contact. Date de dernier contact,
+    // statut « Relancé » (s'il était à traiter) et priorités sont mis à jour. L'historique affiche la
+    // relance elle-même comme « E-mail envoyé » : aucune ligne en double.
+    const { error: contactError } = await supabase.rpc("enregistrer_contact", { p_prospect: prospect.id, p_le: sentAt });
+    if (contactError) console.error("[envoi] e-mail envoyé mais contact non enregistré", { code: contactError.code });
     return Response.json({ ok: true, envoyeeLe: sentAt, envoyeeA: recipient });
   } catch (error) {
     const message =

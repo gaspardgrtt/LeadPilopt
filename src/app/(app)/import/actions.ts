@@ -17,9 +17,19 @@ import { FOLLOWUP_TONES, type FollowupTone } from "@/lib/prospects";
 
 export type ImportActionResult<T = object> = ({ ok: true } & T) | { ok: false; message: string };
 
-export async function startImport(replace: boolean): Promise<ImportActionResult<{ importId: string }>> {
+/**
+ * Jeton de confirmation de « Remplacer toutes les données ». La suppression (prospects et, en
+ * cascade, tout leur historique) n'a lieu que si l'interface le transmet après la case cochée par
+ * l'utilisateur : un appel incomplet ou accidentel ne supprime rien.
+ */
+const REPLACE_CONFIRMATION = "supprimer-prospects-et-historique";
+
+export async function startImport(replace: boolean, confirmation?: string): Promise<ImportActionResult<{ importId: string }>> {
   const { t } = await getI18n();
   const user = await requireUser();
+  if (replace && confirmation !== REPLACE_CONFIRMATION) {
+    return { ok: false, message: t.import.errors.replaceNotConfirmed };
+  }
   if (replace) {
     const supabase = await createClient();
     const { error } = await supabase.from("prospects").delete().eq("utilisateur_id", user.id);

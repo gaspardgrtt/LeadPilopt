@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ActivityRow } from "@/lib/activity/activity";
 import { notFound } from "next/navigation";
 import { getI18n } from "@/i18n/server";
 
@@ -14,6 +15,13 @@ export const metadata: Metadata = { title: "Catalogue UI · Aperçu de la fiche"
 
 // Fiche E5 réelle (ProspectView) avec des données d'exemple, sans session. ?relance=1 affiche une
 // relance déjà préparée. Développement uniquement.
+const NO_SEND = { envoi_statut: null, envoi_demande_le: null, envoyee_le: null, envoyee_a: null, envoi_erreur: null } as const;
+const SAMPLE_ACTIVITIES: ActivityRow[] = [
+  { id: "a3", type: "relance", canal: "telephone", resume: "Souhaite revoir la remise avec son associé.", effectuee_le: "2026-10-09T09:30:00Z", prochaine_action_le: "2026-10-12", objet: null, cree_le: "2026-10-09T09:30:00Z", copiee_le: null, ...NO_SEND },
+  { id: "a2", type: "brouillon", canal: null, resume: null, effectuee_le: null, prochaine_action_le: null, objet: "Nordwind GmbH : où en est votre décision ?", cree_le: "2026-10-08T08:00:00Z", copiee_le: "2026-10-08T08:05:00Z", ...NO_SEND },
+  { id: "a1", type: "note", canal: null, resume: "Comité d'achat reporté à fin octobre.", effectuee_le: "2026-10-07T15:00:00Z", prochaine_action_le: null, objet: null, cree_le: "2026-10-07T15:00:00Z", copiee_le: null, ...NO_SEND },
+];
+
 export default async function ProspectPreviewPage({ searchParams }: { searchParams: Promise<{ relance?: string }> }) {
   const { locale } = await getI18n();
   if (process.env.NODE_ENV === "production") notFound();
@@ -48,8 +56,15 @@ export default async function ProspectPreviewPage({ searchParams }: { searchPara
                   brevo_message_id: null,
                   envoi_erreur: null,
                   cree_le: "2026-10-08T08:00:00Z",
+                  type: "brouillon",
+                  canal: null,
+                  resume: null,
+                  effectuee_le: null,
+                  prochaine_action_le: null,
                 }
               : null,
+            // Historique d'exemple (aperçu de développement uniquement, aucune donnée réelle).
+            activities: relance ? SAMPLE_ACTIVITIES : [],
           }}
           explanation={explainScore(prospect, context, undefined, locale)}
           defaultTone="direct"

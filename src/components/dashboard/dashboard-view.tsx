@@ -32,7 +32,7 @@ export type DashboardViewProps = {
     nbAffairesOuvertes: number;
     caRecupere: number;
   };
-  weekly: { generated: number; copied: number };
+  weekly: { prepared: number; copied: number; done: number };
   top: ProspectRow[];
   silence: { label: string; total: number; count: number }[];
   /** Données du brief du matin (panneau secondaire). */

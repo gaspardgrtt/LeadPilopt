@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test:db": "node supabase/tests/rls.test.mjs",
+    "test:db": "node supabase/tests/rls.test.mjs && node supabase/tests/migration-donnees.test.mjs",
     "db:types": "supabase gen types typescript --linked --schema public > src/types/database.gen.ts && node scripts/with-header.mjs",
     "db:types:local": "supabase gen types typescript --local --schema public > src/types/database.gen.ts && node scripts/with-header.mjs",
     "db:push": "supabase db push",

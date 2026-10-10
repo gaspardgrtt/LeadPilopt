@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth/session";
 import type { ProspectStatus } from "@/lib/prospects";
 import type { Tables } from "@/types/database";
 import { buildScoreContext, type ScoreContext } from "@/lib/scoring/score";
+import { CONTACT_TYPES, type ActivityRow } from "@/lib/activity/activity";
 
 // Lectures des écrans E3 à E5. Toutes passent par le client de l'utilisateur connecté :
 // la Row Level Security limite les résultats à ses propres données ; le filtre explicite sur
@@ -149,6 +150,8 @@ export const getProspectCounts = cache(async (): Promise<ProspectCounts> => {
 export type ProspectDetail = {
   prospect: Prospect;
   relance: Relance | null;
+  /** Journal du dossier (brouillons utilisés, e-mails envoyés, activités), pour l'historique. */
+  activities: ActivityRow[];
   position: { index: number; total: number; previousId: string | null; nextId: string | null } | null;
 };
 
@@ -158,22 +161,33 @@ export function isUuid(value: string) {
   return UUID_PATTERN.test(value);
 }
 
-/** Fiche E5 : le prospect, sa dernière relance et sa position dans la liste « oubliés ». */
+const ACTIVITY_COLUMNS =
+  "id, type, canal, resume, effectuee_le, prochaine_action_le, objet, cree_le, copiee_le, envoi_statut, envoi_demande_le, envoyee_le, envoyee_a, envoi_erreur" as const;
+
+/** Fiche E5 : le prospect, son brouillon de relance, son historique et sa position dans la liste « oubliés ». */
 export async function getProspectDetail(id: string): Promise<ProspectDetail | null> {
   if (!isUuid(id)) return null;
   const user = await requireUser();
   const supabase = await createClient();
 
-  const [prospectResult, relanceResult, orderResult] = await Promise.all([
+  const [prospectResult, relanceResult, activitiesResult, orderResult] = await Promise.all([
     supabase.from("prospects").select("*").eq("utilisateur_id", user.id).eq("id", id).maybeSingle(),
     supabase
       .from("relances")
       .select("*")
       .eq("utilisateur_id", user.id)
       .eq("prospect_id", id)
+      .eq("type", "brouillon")
       .order("cree_le", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from("relances")
+      .select(ACTIVITY_COLUMNS)
+      .eq("utilisateur_id", user.id)
+      .eq("prospect_id", id)
+      .order("cree_le", { ascending: false })
+      .limit(200),
     supabase
       .from("prospects")
       .select("id")
@@ -186,6 +200,7 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
 
   if (prospectResult.error) throw new DataError("Lecture du prospect", prospectResult.error);
   if (relanceResult.error) throw new DataError("Lecture de la relance", relanceResult.error);
+  if (activitiesResult.error) throw new DataError("Lecture de l'historique", activitiesResult.error);
   if (orderResult.error) throw new DataError("Lecture de l'ordre des prospects", orderResult.error);
   if (!prospectResult.data) return null;
 
@@ -195,6 +210,7 @@ export async function getProspectDetail(id: string): Promise<ProspectDetail | nu
   return {
     prospect: prospectResult.data,
     relance: relanceResult.data,
+    activities: activitiesResult.data,
     position:
       index === -1
         ? null
@@ -285,6 +301,14 @@ function startOfParisDay(now: Date = new Date()): string {
   return new Date(Date.UTC(+parts.year, +parts.month - 1, +parts.day) - offset).toISOString();
 }
 
+/**
+ * Filtre PostgREST : brouillon copié / ouvert dans Gmail (ou envoyé) depuis `since`, ou contact
+ * enregistré par l'agent (relance, appel, message) depuis `since`.
+ */
+function usedOrContactSince(since: string) {
+  return `copiee_le.gte."${since}",and(type.in.(${CONTACT_TYPES.join(",")}),effectuee_le.gte."${since}")`;
+}
+
 export type DailyProgress = { done: number; total: number };
 
 /**
@@ -295,7 +319,11 @@ export async function getDailyProgress(): Promise<DailyProgress> {
   const user = await requireUser();
   const supabase = await createClient();
   const [sent, pending] = await Promise.all([
-    supabase.from("relances").select("prospect_id").eq("utilisateur_id", user.id).gte("copiee_le", startOfParisDay()),
+    supabase
+      .from("relances")
+      .select("prospect_id")
+      .eq("utilisateur_id", user.id)
+      .or(usedOrContactSince(startOfParisDay())),
     supabase
       .from("prospects")
       .select("id")
@@ -319,23 +347,70 @@ export async function hasSentFollowup(): Promise<boolean> {
     .from("relances")
     .select("id", { count: "exact", head: true })
     .eq("utilisateur_id", user.id)
-    .not("copiee_le", "is", null);
+    .or(`copiee_le.not.is.null,type.in.(${CONTACT_TYPES.join(",")})`);
   if (error) throw new DataError("Lecture de l'onboarding", error);
   return (count ?? 0) > 0;
 }
 
-export type WeeklyActivity = { generated: number; copied: number };
+/**
+ * Activité des 7 derniers jours, sans jamais présenter une ouverture de Gmail comme un envoi :
+ * - prepared : relances préparées (brouillons créés) ;
+ * - copied : brouillons copiés ou ouverts dans Gmail, sans envoi confirmé par Izmo ;
+ * - done : relances effectuées et vérifiables (e-mail accepté par Brevo, ou relance / appel /
+ *   message confirmé par l'agent).
+ */
+export type WeeklyActivity = { prepared: number; copied: number; done: number };
 
 /** Activité des 7 derniers jours : relances préparées, et relances copiées ou ouvertes dans Gmail. */
 export async function getWeeklyActivity(): Promise<WeeklyActivity> {
   const user = await requireUser();
   const supabase = await createClient();
   const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-  const [generated, copied] = await Promise.all([
-    supabase.from("relances").select("id", { count: "exact", head: true }).eq("utilisateur_id", user.id).gte("cree_le", since),
-    supabase.from("relances").select("id", { count: "exact", head: true }).eq("utilisateur_id", user.id).gte("copiee_le", since),
+  const count = () => supabase.from("relances").select("id", { count: "exact", head: true }).eq("utilisateur_id", user.id);
+  const [prepared, copied, done] = await Promise.all([
+    count().eq("type", "brouillon").gte("cree_le", since),
+    count().eq("type", "brouillon").gte("copiee_le", since).or("envoi_statut.is.null,envoi_statut.neq.envoyee"),
+    count().or(`and(type.eq.brouillon,envoyee_le.gte."${since}"),and(type.in.(${CONTACT_TYPES.join(",")}),effectuee_le.gte."${since}")`),
   ]);
-  if (generated.error) throw new DataError("Lecture de l'activité", generated.error);
-  if (copied.error) throw new DataError("Lecture de l'activité", copied.error);
-  return { generated: generated.count ?? 0, copied: copied.count ?? 0 };
+  for (const result of [prepared, copied, done]) if (result.error) throw new DataError("Lecture de l'activité", result.error);
+  return { prepared: prepared.count ?? 0, copied: copied.count ?? 0, done: done.count ?? 0 };
+}
+
+export type NextActionItem = Pick<Prospect, "id" | "entreprise" | "contact_nom" | "prochaine_action_le" | "statut">;
+
+/**
+ * Prochaines actions programmées (rappels internes), de la plus urgente à la plus lointaine.
+ * Les dossiers gagnés, perdus ou ignorés n'en ont plus besoin.
+ */
+export async function getNextActions(limit = 30): Promise<NextActionItem[]> {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("prospects")
+    .select("id, entreprise, contact_nom, prochaine_action_le, statut")
+    .eq("utilisateur_id", user.id)
+    .not("prochaine_action_le", "is", null)
+    .not("statut", "in", "(gagne,perdu,ignore)")
+    .order("prochaine_action_le", { ascending: true })
+    .order("id")
+    .limit(limit);
+  if (error) throw new DataError("Lecture des prochaines actions", error);
+  return data;
+}
+
+/**
+ * Nombre d'éléments de l'historique du compte (activités, notes, prochaines actions, e-mails
+ * envoyés, brouillons copiés ou ouverts) : affiché avant « Remplacer toutes les données », qui les
+ * supprime avec les prospects.
+ */
+export async function getHistoryCount(): Promise<number> {
+  const user = await requireUser();
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from("relances")
+    .select("id", { count: "exact", head: true })
+    .eq("utilisateur_id", user.id)
+    .or("type.neq.brouillon,copiee_le.not.is.null,envoi_statut.eq.envoyee");
+  if (error) throw new DataError("Comptage de l'historique", error);
+  return count ?? 0;
 }

@@ -14,8 +14,9 @@ import { MovingBorderButton } from "@/components/shared/moving-border-button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { buildGmailComposeUrl } from "@/lib/gmail";
 import { FOLLOWUP_TONES, type FollowupTone, type ProspectStatus } from "@/lib/prospects";
-import { useLocale, useT } from "@/i18n/client";
+import { useFormat, useLocale, useT } from "@/i18n/client";
 import { FOLLOWUP_SCENARIOS, type FollowupScenario } from "@/lib/followups/templates";
+import { RecordActivityDialog, ScheduleNextActionDialog, type RecordedActivity } from "./activity-controls";
 import {
   Select,
   SelectContent,
@@ -209,6 +210,7 @@ export function FollowupPanel({
   emailSending,
 }: FollowupPanelProps) {
   const t = useT();
+  const format = useFormat();
   const router = useRouter();
   const [relance, setRelance] = React.useState<FollowupRelance | null>(
     initialRelance,
@@ -307,18 +309,30 @@ export function FollowupPanel({
     return true;
   }
 
-  async function markFollowedUp() {
-    const result = await updateProspectStatus(prospectId, "relance");
-    if (!result.ok) {
-      toast.error(result.message);
-      return;
-    }
-    if (nextProspectId) {
-      toast.success(t.followup.markedNext);
-      router.push(`/prospects/${nextProspectId}`);
-    } else {
-      toast.success(t.followup.marked);
-    }
+  // « Marquer comme relancé » : l'agent confirme la relance réellement effectuée (canal, date,
+  // prochaine action). Rien n'est enregistré tant qu'il n'a pas confirmé.
+  const [recordOpen, setRecordOpen] = React.useState(false);
+  const [scheduleOpen, setScheduleOpen] = React.useState(false);
+  // Brouillon copié ou ouvert dans Gmail : le canal « E-mail » est présélectionné (sans rien affirmer).
+  const [usedDraft, setUsedDraft] = React.useState(Boolean(initialRelance?.copiee));
+
+  function markFollowedUp() {
+    setRecordOpen(true);
+  }
+
+  function onFollowupRecorded(activity: RecordedActivity) {
+    const description = [
+      t.activity.contactUpdated,
+      activity.nextChanged && activity.nextAction ? t.activity.nextScheduled(format.date(activity.nextAction)) : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    toast.success(t.activity.saved.relance, {
+      description,
+      action: nextProspectId
+        ? { label: t.activity.nextProspect, onClick: () => router.push(`/prospects/${nextProspectId}`) }
+        : undefined,
+    });
   }
 
   async function copy() {
@@ -338,6 +352,7 @@ export function FollowupPanel({
         onClick: () => void markFollowedUp(),
       },
     });
+    setUsedDraft(true);
     const [copied] = await Promise.all([
       markFollowupCopied(relance.id),
       persistDraft(),
@@ -366,6 +381,7 @@ export function FollowupPanel({
         },
       },
     );
+    setUsedDraft(true);
     const [used] = await Promise.all([
       markFollowupCopied(relance.id),
       persistDraft(),
@@ -532,9 +548,26 @@ export function FollowupPanel({
           onSent={(info) => {
             setSent(info);
             router.refresh();
+            // L'envoi est confirmé par Brevo : on propose de planifier la suite.
+            setScheduleOpen(true);
           }}
         />
       )}
+      <RecordActivityDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        prospectId={prospectId}
+        type="relance"
+        defaultChannel={usedDraft ? "email" : null}
+        defaultSummary={usedDraft && subject ? t.followup.recordedSummary(subject) : ""}
+        onRecorded={onFollowupRecorded}
+      />
+      <ScheduleNextActionDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        prospectId={prospectId}
+        description={t.activity.schedule.afterEmail}
+      />
     </>
   );
 }

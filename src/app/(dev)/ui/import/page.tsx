@@ -12,7 +12,7 @@ export default function ImportWizardPreviewPage() {
   if (process.env.NODE_ENV === "production") notFound();
   return (
     <PageContainer className="max-w-[960px]">
-      <ImportWizard existingCount={8} defaults={{ seuil: 21, panier: null, ton: "direct", signature: "", commission: null }} />
+      <ImportWizard existingCount={8} historyCount={12} defaults={{ seuil: 21, panier: null, ton: "direct", signature: "", commission: null }} />
     </PageContainer>
   );
 }

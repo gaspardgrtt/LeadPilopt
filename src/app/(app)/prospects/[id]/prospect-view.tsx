@@ -18,6 +18,8 @@ import { getI18n } from "@/i18n/server";
 import type { FollowupTone } from "@/lib/prospects";
 
 import { FollowupPanel, OppositionControl, ProspectStatusControl } from "./prospect-actions";
+import { NextActionControl } from "./activity-controls";
+import { ActivityHistory } from "./activity-history";
 
 // E5 — vue de la fiche (présentation) : pourquoi ce dossier compte, la relance à envoyer, puis les
 // informations. Alimentée par la page (données réelles) et par l'aperçu /ui/apercu/prospect.
@@ -41,7 +43,9 @@ type ProspectViewProps = {
 
 export async function ProspectView({ detail, explanation, defaultTone }: ProspectViewProps) {
   const { t, locale, format } = await getI18n();
-  const { prospect, relance, position } = detail;
+  const { prospect, relance: draftRow, activities, position } = detail;
+  // Brouillon de relance (un brouillon a toujours objet, corps et ton).
+  const relance = draftRow && draftRow.objet !== null && draftRow.corps !== null && draftRow.ton !== null ? { ...draftRow, objet: draftRow.objet, corps: draftRow.corps, ton: draftRow.ton } : null;
   const silence = prospect.date_dernier_contact ? daysSince(prospect.date_dernier_contact) : null;
   const stage = prospect.etape ? t.enums.stage[prospect.etape] : null;
   const shownScore = explanation.kind === "scored" ? explanation.score : prospect.score;
@@ -175,12 +179,19 @@ export async function ProspectView({ detail, explanation, defaultTone }: Prospec
                   </span>
                 </InfoRow>
                 <InfoRow label={t.sheet.score}>{shownScore === null ? DASH : <ScoreGauge score={shownScore} />}</InfoRow>
+                <InfoRow label={t.activity.nextActionLabel}>
+                  <NextActionControl prospectId={prospect.id} date={prospect.prochaine_action_le ?? null} />
+                </InfoRow>
                 <InfoRow label={t.sheet.prospecting}>
                   <OppositionControl prospectId={prospect.id} opposition={prospect.opposition_prospection_le ?? null} />
                 </InfoRow>
               </dl>
             </CardContent>
           </Card>
+        </div>
+
+        <div id="historique" className="mt-5 scroll-mt-6">
+          <ActivityHistory prospectId={prospect.id} rows={activities} opposition={Boolean(prospect.opposition_prospection_le)} />
         </div>
       </Card>
     </>

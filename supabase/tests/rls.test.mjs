@@ -54,8 +54,11 @@ await expectError("A modifie son email", "update public.utilisateurs set email =
 await db.query("update public.utilisateurs set nom = 'Alice', seuil_inactivite_jours = 30 where id = $1", [A]);
 ok("A modifie ses réglages", (await db.query("select nom from public.utilisateurs")).rows[0].nom === "Alice");
 const kpi = (await db.query("select * from public.tableau_de_bord()")).rows[0];
-ok(`tableau_de_bord : 3 prospects, 1 oublié, 4870 € récupérable, 9000 € récupéré → ${JSON.stringify(kpi)}`,
-  Number(kpi.nb_prospects) === 3 && Number(kpi.nb_oublies) === 1 && Number(kpi.ca_recuperable_eur) === 4870 && Number(kpi.ca_recupere_eur) === 9000);
+ok(`tableau_de_bord : 3 prospects, 1 oublié, 4870 € récupérable ; brouillon seulement copié → rien « récupéré » → ${JSON.stringify(kpi)}`,
+  Number(kpi.nb_prospects) === 3 && Number(kpi.nb_oublies) === 1 && Number(kpi.ca_recuperable_eur) === 4870 && Number(kpi.ca_recupere_eur) === 0);
+await db.query("update public.relances set envoi_statut = 'envoyee', envoyee_le = now(), envoyee_a = 'x@gagne.fr' where prospect_id = $1", [gagne]);
+const kpiEnvoye = (await db.query("select * from public.tableau_de_bord()")).rows[0];
+ok("tableau_de_bord : après un envoi confirmé, 9 000 € « gagnés après une relance »", Number(kpiEnvoye.ca_recupere_eur) === 9000 && Number(kpiEnvoye.nb_gagnes_apres_relance) === 1);
 
 // --- Utilisateur B
 await as(B);
@@ -212,6 +215,155 @@ await db.query("update public.utilisateurs set taux_commission = null where id =
 await as(B);
 const pirate = await db.query("update public.utilisateurs set taux_commission = 9 where id = $1", [A]);
 ok("B ne peut pas modifier le taux de A", pirate.affectedRows === 0);
+
+// --- Historique des activités et prochaines actions (migration historique_activites)
+await as(A);
+const pAct = (await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact, statut)
+  values ($1, 'Activité SAS', 50000, 'negociation', current_date - 60, 'a_traiter') returning id`, [A])).rows[0].id;
+await db.query("select public.recalculer_prospects()");
+const etat = async () => (await db.query("select date_dernier_contact::text d, statut, est_oublie, ca_recuperable_eur::float ca, prochaine_action_le::text pa from public.prospects where id = $1", [pAct])).rows[0];
+const avantAct = await etat();
+ok("dossier silencieux depuis 60 j : oublié", avantAct.est_oublie === true);
+
+// 1. Brouillon ouvert dans Gmail (copiee_le) : ni contact, ni date, ni statut
+const brouillonGmail = (await db.query("insert into public.relances (prospect_id, utilisateur_id, objet, corps, ton) values ($1, $2, 'o', 'c', 'direct') returning id", [pAct, A])).rows[0].id;
+await db.query("update public.relances set copiee_le = now() where id = $1", [brouillonGmail]);
+const apresGmail = await etat();
+ok("Gmail ouvert : date de dernier contact inchangée, toujours oublié, toujours « à traiter »",
+  apresGmail.d === avantAct.d && apresGmail.est_oublie === true && apresGmail.statut === "a_traiter");
+ok("les lignes existantes sont des brouillons", (await db.query("select type from public.relances where id = $1", [brouillonGmail])).rows[0].type === "brouillon");
+await expectError("brouillon sans objet", "insert into public.relances (prospect_id, utilisateur_id, corps, ton) values ($1, $2, 'c', 'direct')", [pAct, A]);
+
+// 2. Note : historisée, sans effet sur le contact
+await db.query("select public.enregistrer_activite($1, $2, 'note', null, 'A demandé à être rappelé en novembre', now(), null, false)", [crypto.randomUUID(), pAct]);
+const apresNote = await etat();
+ok("note : enregistrée sans changer la date ni le statut", apresNote.d === avantAct.d && apresNote.statut === "a_traiter");
+await expectError("note vide", "select public.enregistrer_activite($1, $2, 'note', null, '  ', now(), null, false)", [crypto.randomUUID(), pAct]);
+
+// 3. Relance effectuée manuellement (téléphone) avec prochaine action dans 3 jours
+const idRelance = crypto.randomUUID();
+const cree = (await db.query("select public.enregistrer_activite($1, $2, 'relance', 'telephone', 'Point sur le financement', now(), current_date + 3, true) as c", [idRelance, pAct])).rows[0].c;
+const apresRelance = await etat();
+ok(`relance manuelle : date du jour, « relancé », plus oublié, CA recalculé (${avantAct.ca} → ${apresRelance.ca})`,
+  cree === true && apresRelance.statut === "relance" && apresRelance.est_oublie === false && apresRelance.ca > avantAct.ca
+  && apresRelance.d === (await db.query("select (now() at time zone 'Europe/Paris')::date::text d")).rows[0].d);
+ok("prochaine action enregistrée sur le dossier (J+3)", apresRelance.pa === (await db.query("select (current_date + 3)::text d")).rows[0].d);
+const rejeu = (await db.query("select public.enregistrer_activite($1, $2, 'relance', 'telephone', 'Point sur le financement', now(), current_date + 3, true) as c", [idRelance, pAct])).rows[0].c;
+ok("nouvelle tentative (même identifiant) : aucun doublon", rejeu === false
+  && (await db.query("select count(*)::int n from public.relances where prospect_id = $1 and type = 'relance'", [pAct])).rows[0].n === 1);
+await expectError("activité datée dans le futur", "select public.enregistrer_activite($1, $2, 'appel', 'telephone', null, now() + interval '2 days', null, false)", [crypto.randomUUID(), pAct]);
+await expectError("type d'activité inconnu", "select public.enregistrer_activite($1, $2, 'reponse_recue', null, null, now(), null, false)", [crypto.randomUUID(), pAct]);
+await expectError("canal inconnu", "select public.enregistrer_activite($1, $2, 'message', 'pigeon', null, now(), null, false)", [crypto.randomUUID(), pAct]);
+
+// 4. Activité datée d'hier après celle du jour : la date de dernier contact ne recule pas
+await db.query("select public.enregistrer_activite($1, $2, 'appel', 'telephone', null, now() - interval '1 day', null, false)", [crypto.randomUUID(), pAct]);
+ok("contact antérieur saisi après coup : date de dernier contact conservée", (await etat()).d === apresRelance.d);
+ok("prochaine action conservée quand l'activité ne la modifie pas", (await etat()).pa === apresRelance.pa);
+
+// 5. Ré-import d'un export plus ancien : la date ne recule pas, le statut et le rappel restent
+await db.query("update public.prospects set date_dernier_contact = current_date - 90 where id = $1", [pAct]);
+const apresReimport = await etat();
+ok("ré-import plus ancien : date, statut et prochaine action conservés", apresReimport.d === apresRelance.d && apresReimport.statut === "relance" && apresReimport.pa === apresRelance.pa);
+await db.query("update public.prospects set date_dernier_contact = null where id = $1", [pAct]);
+ok("ré-import sans date : date conservée", (await etat()).d === apresRelance.d);
+
+// 6. Prochaine action seule, puis « aucune prochaine action »
+await db.query("select public.enregistrer_activite($1, $2, 'prochaine_action', null, null, now(), current_date + 7, true)", [crypto.randomUUID(), pAct]);
+ok("prochaine action programmée seule (J+7)", (await etat()).pa === (await db.query("select (current_date + 7)::text d")).rows[0].d);
+await expectError("prochaine action sans date", "select public.enregistrer_activite($1, $2, 'prochaine_action', null, null, now(), null, true)", [crypto.randomUUID(), pAct]);
+await db.query("select public.enregistrer_activite($1, $2, 'message', 'whatsapp', null, now(), null, true)", [crypto.randomUUID(), pAct]);
+ok("contact avec « aucune prochaine action » : rappel effacé, aucun rappel fictif", (await etat()).pa === null);
+
+// 7. Statut gagné conservé ; « relancé » n'est jamais une réponse
+await db.query("update public.prospects set statut = 'gagne' where id = $1", [pAct]);
+await db.query("select public.enregistrer_activite($1, $2, 'appel', 'telephone', null, now(), null, false)", [crypto.randomUUID(), pAct]);
+ok("contact sur un dossier gagné : statut « gagné » conservé", (await etat()).statut === "gagne");
+await db.query("update public.prospects set statut = 'relance' where id = $1", [pAct]);
+
+// 8. Opposition à la prospection : aucun contact enregistrable, note possible
+await db.query("update public.prospects set opposition_prospection_le = now() where id = $1", [pAct]);
+await expectError("relance sur un prospect opposé", "select public.enregistrer_activite($1, $2, 'relance', 'email', null, now(), null, false)", [crypto.randomUUID(), pAct]);
+await db.query("select public.enregistrer_activite($1, $2, 'note', null, 'Opposition confirmée par téléphone', now(), null, false)", [crypto.randomUUID(), pAct]);
+ok("note possible sur un prospect opposé", true);
+await db.query("update public.prospects set opposition_prospection_le = null where id = $1", [pAct]);
+
+// 9. Envoi Brevo confirmé : enregistrer_contact (appelé par la route après acceptation)
+await db.query("update public.prospects set statut = 'a_traiter' where id = $1", [pAct]);
+await db.query("select public.enregistrer_contact($1, now())", [pAct]);
+ok("e-mail envoyé (confirmé) : « relancé »", (await etat()).statut === "relance");
+
+// 10. Isolation entre comptes
+const nbActA = (await db.query("select count(*)::int n from public.relances where prospect_id = $1", [pAct])).rows[0].n;
+await as(B);
+ok("B ne lit aucune activité de A", (await db.query("select count(*)::int n from public.relances where prospect_id = $1", [pAct])).rows[0].n === 0);
+await expectError("B enregistre une activité sur un prospect de A", "select public.enregistrer_activite($1, $2, 'note', null, 'intrusion', now(), null, false)", [crypto.randomUUID(), pAct]);
+await expectError("B enregistre un contact sur un prospect de A", "select public.enregistrer_contact($1, now())", [pAct]);
+ok("B ne modifie pas la prochaine action de A", (await db.query("update public.prospects set prochaine_action_le = current_date where id = $1", [pAct])).affectedRows === 0);
+await as(null);
+await expectError("anonyme : enregistrer_activite", "select public.enregistrer_activite($1, $2, 'note', null, 'x', now(), null, false)", [crypto.randomUUID(), pAct]);
+await as(A);
+ok("A retrouve toutes ses activités", (await db.query("select count(*)::int n from public.relances where prospect_id = $1", [pAct])).rows[0].n === nbActA);
+
+// 10 bis. Accès direct aux tables (sans passer par les fonctions)
+await as(null);
+await expectError("anonyme : lecture de l'historique", "select count(*) from public.relances");
+await expectError("anonyme : écriture directe dans l'historique", "insert into public.relances (prospect_id, utilisateur_id, type, effectuee_le, resume) values ($1, $2, 'note', now(), 'x')", [pAct, A]);
+await expectError("anonyme : lecture des prochaines actions", "select prochaine_action_le from public.prospects");
+await expectError("anonyme : enregistrer_contact", "select public.enregistrer_contact($1, now())", [pAct]);
+await as(B);
+await expectError("B écrit une activité au nom de A (utilisateur usurpé)", "insert into public.relances (prospect_id, utilisateur_id, type, effectuee_le, resume) values ($1, $2, 'note', now(), 'x')", [pAct, A]);
+await expectError("B rattache sa propre activité au prospect de A", "insert into public.relances (prospect_id, utilisateur_id, type, effectuee_le, resume) values ($1, $2, 'note', now(), 'x')", [pAct, B]);
+ok("B ne peut ni modifier ni supprimer l'historique de A",
+  (await db.query("update public.relances set resume = 'falsifié' where prospect_id = $1", [pAct])).affectedRows === 0
+  && (await db.query("delete from public.relances where prospect_id = $1", [pAct])).affectedRows === 0);
+await as(A);
+await expectError("A transfère une activité vers le compte de B", "update public.relances set utilisateur_id = $1 where prospect_id = $2", [B, pAct]);
+ok("historique de A intact après les tentatives", (await db.query("select count(*)::int n from public.relances where prospect_id = $1", [pAct])).rows[0].n === nbActA);
+
+// 11. Tableau de bord : un dossier gagné après une relance manuelle compte comme « gagné après relance »
+const avantKpi = Number((await db.query("select nb_gagnes_apres_relance n from public.tableau_de_bord()")).rows[0].n);
+const pGagne2 = (await db.query("insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, statut) values ($1, 'Gagné Manuel', 1000, 'negociation', 'a_traiter') returning id", [A])).rows[0].id;
+await db.query("select public.enregistrer_activite($1, $2, 'relance', 'email', null, now(), null, false)", [crypto.randomUUID(), pGagne2]);
+await db.query("update public.prospects set statut = 'gagne' where id = $1", [pGagne2]);
+ok("tableau de bord : gagné après une relance manuelle compté", Number((await db.query("select nb_gagnes_apres_relance n from public.tableau_de_bord()")).rows[0].n) === avantKpi + 1);
+await db.query("delete from public.prospects where id in ($1, $2)", [pAct, pGagne2]);
+await db.query("select public.recalculer_prospects()");
+
+// --- Parcours complet : dossier oublié → Gmail → relance confirmée → prochaine action → priorités
+await as(A);
+const pP = (await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact, statut)
+  values ($1, 'Parcours SAS', 80000, 'proposition', current_date - 50, 'a_traiter') returning id`, [A])).rows[0].id;
+const pAutre = (await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur, etape, date_dernier_contact, statut)
+  values ($1, 'Témoin SAS', 30000, 'negociation', current_date - 40, 'a_traiter') returning id`, [A])).rows[0].id;
+await db.query("select public.recalculer_prospects()");
+// Requêtes reprises des écrans : « Mes priorités » (getProspects oubliés à traiter), « Prochaines actions » (getNextActions)
+const priorites = async () => (await db.query("select id from public.prospects where utilisateur_id = $1 and est_oublie and statut = 'a_traiter' order by ca_recuperable_eur desc nulls last", [A])).rows.map((r) => r.id);
+const prochaines = async () => (await db.query("select id, prochaine_action_le::text d from public.prospects where utilisateur_id = $1 and prochaine_action_le is not null and statut not in ('gagne','perdu','ignore') order by prochaine_action_le", [A])).rows;
+const oubliesKpi = async () => Number((await db.query("select nb_oublies from public.tableau_de_bord()")).rows[0].nb_oublies);
+ok("parcours 1 : dossier silencieux depuis 50 j présent dans « Mes priorités »", (await priorites()).includes(pP));
+const oubliesAvant = await oubliesKpi();
+const scoreTemoinAvant = (await db.query("select score from public.prospects where id = $1", [pAutre])).rows[0].score;
+
+const bP = (await db.query("insert into public.relances (prospect_id, utilisateur_id, objet, corps, ton) values ($1, $2, 'o', 'c', 'direct') returning id", [pP, A])).rows[0].id;
+await db.query("update public.relances set copiee_le = now() where id = $1", [bP]);
+ok("parcours 2 : brouillon ouvert dans Gmail → toujours dans « Mes priorités », aucun rappel", (await priorites()).includes(pP) && !(await prochaines()).some((r) => r.id === pP));
+
+await db.query("select public.enregistrer_activite($1, $2, 'relance', 'email', 'Relance par e-mail', now(), current_date + 3, true)", [crypto.randomUUID(), pP]);
+const apresP = (await db.query("select statut, est_oublie, score, ca_recuperable_eur::float ca, date_dernier_contact::text d from public.prospects where id = $1", [pP])).rows[0];
+ok("parcours 3 : relance confirmée → sort de « Mes priorités », « Relancé », plus oublié", !(await priorites()).includes(pP) && apresP.statut === "relance" && apresP.est_oublie === false);
+ok("parcours 3 : compteur « oubliés » du tableau de bord diminue d'une unité", (await oubliesKpi()) === oubliesAvant - 1);
+const j3 = (await db.query("select (current_date + 3)::text d")).rows[0].d;
+ok("parcours 4 : rappel à J+3 dans « Prochaines actions »", (await prochaines()).find((r) => r.id === pP)?.d === j3);
+const histo = (await db.query("select type, canal, prochaine_action_le::text pa from public.relances where prospect_id = $1 order by cree_le", [pP])).rows;
+ok("parcours 5 : historique = brouillon (Gmail) + relance par e-mail avec prochaine action", histo.length === 2 && histo[0].type === "brouillon" && histo[1].type === "relance" && histo[1].canal === "email" && histo[1].pa !== null);
+const scoreTemoinApres = (await db.query("select score from public.prospects where id = $1", [pAutre])).rows[0].score;
+ok(`parcours 6 : scores recalculés pour tout le compte (témoin ${scoreTemoinAvant} → ${scoreTemoinApres}, toujours entre 0 et 100)`, scoreTemoinApres >= 0 && scoreTemoinApres <= 100);
+await db.query("update public.prospects set statut = 'gagne' where id = $1", [pP]);
+ok("parcours 7 : dossier gagné → retiré des « Prochaines actions »", !(await prochaines()).some((r) => r.id === pP));
+// « Remplacer toutes les données » : suppression des prospects → historique supprimé en cascade
+await db.query("delete from public.prospects where id in ($1, $2)", [pP, pAutre]);
+ok("parcours 8 : suppression des prospects (remplacement) → historique supprimé avec eux", (await db.query("select count(*)::int n from public.relances where prospect_id in ($1, $2)", [pP, pAutre])).rows[0].n === 0);
+await db.query("select public.recalculer_prospects()");
 
 // --- Droits minimaux
 await as(A);
