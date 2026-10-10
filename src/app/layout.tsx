@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
-  return { title: { default: "LeadPilot", template: "%s · LeadPilot" }, description: t.meta.description };
+  return { title: { default: "Izmo", template: "%s · Izmo" }, description: t.meta.description };
 }
 
 export default async function RootLayout({

@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 /*
- * Design system LeadPilot — source unique des jetons visuels.
+ * Design system Izmo — source unique des jetons visuels.
  * Valeurs relevées sur la maquette de référence (Maquette.png).
  * Les composants n'utilisent jamais de couleur en dur : uniquement ces jetons
  * (via les classes Tailwind générées par @theme ci-dessous).
@@ -85,6 +85,8 @@
   --on-dark-positive: #a8ecc5;
   --on-dark-negative: #ffb4a8;
   --tooltip: #0f1222;
+  /* Fond blanc du logo Izmo (PNG opaque) : identique dans les deux thèmes, pour le poser sur un fond sombre. */
+  --logo-plate: #ffffff;
 
   /* Élévation et verre dépoli (surchargés en thème sombre) */
   --elev-xs: 0 1px 2px rgb(16 24 40 / 0.04);
@@ -187,6 +189,7 @@
   --color-on-dark-positive: var(--on-dark-positive);
   --color-on-dark-negative: var(--on-dark-negative);
   --color-tooltip: var(--tooltip);
+  --color-logo-plate: var(--logo-plate);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-warning: var(--warning);

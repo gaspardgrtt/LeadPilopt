@@ -247,11 +247,11 @@ otp_expiry = 900
 # À décommenter une fois un SMTP configuré : sur l'offre gratuite avec l'envoi par défaut,
 # Supabase refuse toute modification des modèles (config push échoue en 400).
 # [auth.email.template.magic_link]
-# subject = "Votre lien de connexion LeadPilot"
+# subject = "Votre lien de connexion Izmo"
 # content_path = "./supabase/templates/magic_link.html"
 #
 # [auth.email.template.confirmation]
-# subject = "Activez votre compte LeadPilot"
+# subject = "Activez votre compte Izmo"
 # content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize notification email template

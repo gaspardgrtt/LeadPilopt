@@ -268,7 +268,7 @@ function Brand() {
           aria-hidden
           className="absolute -left-2 top-1/2 -z-10 size-10 -translate-y-1/2 rounded-full bg-primary/40 blur-xl"
         />
-        <Logo inverted />
+        <Logo onDark />
       </Link>
       <span className="rounded-full border border-white/15 bg-gradient-to-r from-primary/30 to-accent-violet/30 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-white/90 uppercase">
         {t.common.beta}
@@ -309,7 +309,7 @@ export function MobileNav({ counts, user }: AppSidebarProps = {}) {
           aria-label={t.nav.items.dashboard}
           className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40"
         >
-          <Logo compact />
+          <Logo onDark size="sm" />
         </Link>
         <span className="min-w-0 flex-1 truncate text-body font-semibold text-sidebar-foreground-active">
           {current ? t.nav.items[current.label] : null}

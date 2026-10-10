@@ -37,7 +37,7 @@ function frenchDate(date: Date) {
 
 const quote = (value: string) => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
-export const SAMPLE_FILE_NAME = "exemple-leadpilot.csv";
+export const SAMPLE_FILE_NAME = "exemple-izmo.csv";
 
 /** Contenu CSV du jeu d'exemple, dates relatives à `today`. */
 export function buildSampleCsv(today: Date = new Date()): string {

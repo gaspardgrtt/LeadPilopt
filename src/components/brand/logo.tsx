@@ -1,39 +1,49 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
-// Logo de la maquette : maison indigo en deux tons + « LeadPilot » en gras.
+// Logo Izmo : le fichier original public/Image/Izmo.png (1050 × 313, lettres noires et point
+// indigo sur fond blanc opaque), affiché tel quel : seule sa hauteur change. `unoptimized` sert
+// le PNG d'origine sans recompression (couleurs et netteté intactes ; 1050 px suffisent en 3x).
+// Sur fond clair, `mix-blend-multiply` fond le blanc de l'image dans la page ; sur fond sombre
+// (barre latérale, thème sombre), le logo est posé sur une plaque du même blanc que l'image.
+const WIDTH = 1050;
+const HEIGHT = 313;
+
+const SIZES = {
+  sm: "h-[22px]",
+  md: "h-[26px]",
+  lg: "h-9",
+} as const;
+
 type LogoProps = {
-  /** Masque le nom et n'affiche que le symbole. */
-  compact?: boolean;
-  /** Texte blanc pour la barre latérale sombre. */
-  inverted?: boolean;
-  size?: "md" | "lg";
+  size?: keyof typeof SIZES;
+  /** Fond toujours sombre (barre latérale, barre mobile) : plaque blanche quel que soit le thème. */
+  onDark?: boolean;
   className?: string;
 };
 
-export function LogoMark({ className }: { className?: string }) {
+export function Logo({ size = "md", onDark = false, className }: LogoProps) {
   return (
-    <svg viewBox="0 0 32 32" className={className} aria-hidden>
-      <path d="M16 3 3 13.2V29h9.5v-8.2a3.5 3.5 0 0 1 7 0V29H29V13.2L16 3Z" fill="var(--primary)" />
-      <path d="M16 3 3 13.2V29h9.5v-8.2A3.5 3.5 0 0 1 16 17.3V3Z" fill="var(--primary-light)" />
-    </svg>
-  );
-}
-
-export function Logo({ compact = false, inverted = false, size = "md", className }: LogoProps) {
-  return (
-    <span className={cn("inline-flex items-center", size === "lg" ? "gap-3" : "gap-2.5", className)}>
-      <LogoMark className={size === "lg" ? "size-9" : "size-7"} />
-      {!compact && (
-        <span
-          className={cn(
-            "font-bold tracking-[-0.02em]",
-            size === "lg" ? "text-[30px] leading-9" : "text-[20px] leading-7",
-            inverted ? "text-white" : "text-foreground"
-          )}
-        >
-          LeadPilot
-        </span>
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center",
+        onDark
+          ? "rounded-md bg-logo-plate px-2 py-1"
+          : "mix-blend-multiply dark:rounded-md dark:bg-logo-plate dark:px-2.5 dark:py-1.5 dark:mix-blend-normal",
+        className
       )}
+    >
+      <Image
+        src="/Image/Izmo.png"
+        alt="Izmo"
+        width={WIDTH}
+        height={HEIGHT}
+        unoptimized
+        priority
+        className={cn(SIZES[size], "w-auto select-none")}
+        draggable={false}
+      />
     </span>
   );
 }
