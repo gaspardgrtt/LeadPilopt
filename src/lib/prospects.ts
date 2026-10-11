@@ -56,3 +56,15 @@ export function isProspectStatus(value: unknown): value is ProspectStatus {
 
 /** Au-delà de ce silence, l'ancienneté passe en couleur d'alerte. */
 export const LONG_SILENCE_DAYS = 60;
+
+type NamedProspect = { entreprise: string | null; contact_nom: string | null };
+
+/** Titre d'un dossier : l'entreprise, ou le nom du contact pour un particulier (sans entreprise). */
+export function prospectTitle(prospect: NamedProspect): string {
+  return prospect.entreprise?.trim() || prospect.contact_nom?.trim() || "—";
+}
+
+/** Contact affiché sous le titre : null pour un particulier, dont le nom est déjà le titre. */
+export function prospectContact(prospect: NamedProspect): string | null {
+  return prospect.entreprise?.trim() ? prospect.contact_nom : null;
+}

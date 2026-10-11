@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 import { requireUser } from "@/lib/auth/session";
-import type { ProspectStatus } from "@/lib/prospects";
+import { prospectTitle, type ProspectStatus } from "@/lib/prospects";
 import type { Tables } from "@/types/database";
 import { buildScoreContext, type ScoreContext } from "@/lib/scoring/score";
 import { CONTACT_TYPES, type ActivityRow } from "@/lib/activity/activity";
@@ -125,6 +125,8 @@ export async function getProspects(filters: ProspectFilters): Promise<ProspectLi
     .order("id")
     .limit(5000);
   if (error) throw new DataError("Lecture des prospects", error);
+  // Particuliers (sans entreprise) classés par nom parmi les entreprises.
+  if (filters.sort === "entreprise") data.sort((a, b) => prospectTitle(a).localeCompare(prospectTitle(b), "fr"));
   return data;
 }
 
@@ -271,7 +273,7 @@ export const getScoreContext = cache(async (): Promise<ScoreContext> => {
   const [prospects, profil] = await Promise.all([
     supabase
       .from("prospects")
-      .select("entreprise, montant_eur, etape, date_dernier_contact")
+      .select("entreprise, contact_nom, montant_eur, etape, date_dernier_contact")
       .eq("utilisateur_id", user.id)
       .limit(5000),
     getProfil(),

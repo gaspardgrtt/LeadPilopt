@@ -56,6 +56,20 @@ describe("renderFollowup", () => {
     expect(decouverte.corps).not.toContain("proposition");
   });
 
+  it("particulier sans entreprise : aucune entreprise dans l'objet ni dans le message", () => {
+    const particulier: FollowupProspect = { entreprise: null, contact_nom: "Jean Martin", etape: null, date_dernier_contact: daysAgo(20) };
+    for (const scenario of FOLLOWUP_SCENARIOS) {
+      for (const tone of ["formel", "direct", "chaleureux"] as const) {
+        const { objet, corps } = renderFollowup(particulier, scenario, tone, null, today);
+        expect(objet).not.toMatch(/null|undefined|·\s*$| : /);
+        expect(objet.length).toBeGreaterThan(5);
+        expect(corps).not.toMatch(/null|undefined/);
+        expect(corps.startsWith("Bonjour Jean,")).toBe(true);
+      }
+    }
+    expect(renderFollowup(particulier, "suivi_echange", "formel", null, today).corps).toContain("concernant votre projet.");
+  });
+
   it("n'invente rien quand une information manque", () => {
     const anonyme: FollowupProspect = { entreprise: "Acme SAS", contact_nom: null, etape: null, date_dernier_contact: null };
     for (const scenario of FOLLOWUP_SCENARIOS) {

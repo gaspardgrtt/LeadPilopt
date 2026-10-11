@@ -11,7 +11,7 @@ import { FRESHNESS_FLOOR, FRESHNESS_HORIZON_DAYS, silenceDays, stageWeight } fro
 
 export type RiskInput = {
   id: string;
-  entreprise: string;
+  entreprise: string | null;
   contact_nom: string | null;
   montant_eur: number | null;
   etape: DealStage | null;

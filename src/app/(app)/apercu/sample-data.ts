@@ -30,6 +30,7 @@ export function sampleProspectRow(p: SampleProspect, notes: string | null = null
     id: p.id,
     utilisateur_id: "apercu",
     entreprise: p.company,
+    cle_import: null,
     contact_nom: p.contact,
     contact_email: p.email,
     contact_telephone: null,

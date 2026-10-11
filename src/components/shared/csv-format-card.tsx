@@ -6,11 +6,12 @@ import { useT } from "@/i18n/client";
 import { cn } from "@/lib/utils";
 
 // Encarts « Format du fichier CSV » et « Exemple de fichier » sous la zone d'import (maquette).
-// Seules « entreprise » et « date dernier contact » sont obligatoires ; les noms de colonnes
-// HubSpot, Pipedrive et Salesforce (FR et EN) sont aussi reconnus. Les noms de colonnes affichés
-// sont ceux attendus dans le fichier (non traduits) ; l'exemple est une donnée, non traduite.
-const COLUMNS = ["entreprise", "contact", "email", "téléphone", "montant", "date dernier contact", "statut", "notes"];
-const EXAMPLE = ["Acme SAS", "Claire Martin", "claire@acme.fr", "06 12 34 56 78", "15 000", "04/09/2026", "Proposition envoyée", "Attend le budget Q4"];
+// Obligatoires : la date du dernier contact, et le nom du contact (ou prénom + nom) ou l'entreprise ;
+// l'entreprise reste vide pour un particulier. Les noms de colonnes HubSpot, Pipedrive et Salesforce
+// (FR et EN) sont aussi reconnus. Les noms de colonnes affichés sont ceux attendus dans le fichier
+// (non traduits) ; l'exemple est une donnée, non traduite.
+const COLUMNS = ["prénom", "nom", "entreprise", "email", "téléphone", "budget", "dernier contact", "statut", "notes"];
+const EXAMPLE = ["Claire", "Martin", "—", "claire.martin@example.com", "06 12 34 56 78", "420 000", "04/09/2026", "Visite effectuée", "Maison T4 avec jardin"];
 
 export function CsvFormatCard({ className }: { className?: string }) {
   const t = useT();

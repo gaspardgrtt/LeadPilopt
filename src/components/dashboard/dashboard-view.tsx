@@ -15,6 +15,7 @@ import { DashboardHero } from "./dashboard-hero";
 import { FollowUpQueue } from "./follow-up-queue";
 import { MorningBriefPanel } from "./morning-brief-panel";
 import { PriorityCards } from "./priority-cards";
+import { prospectTitle } from "@/lib/prospects";
 
 // Dashboard E3 « poste de pilotage » : hero (argent qui dort + action principale), les trois
 // priorités en cartes, puis la file de relance et la répartition par ancienneté. Le brief du
@@ -62,7 +63,7 @@ export function DashboardView({ firstName, todayLabel, importLabel, threshold, s
     priority: first
       ? {
           id: first.id,
-          entreprise: first.entreprise,
+          entreprise: prospectTitle(first),
           recoverable: firstExplanation?.recoverable ?? first.ca_recuperable_eur ?? 0,
           etape: first.etape,
           silenceDays: first.date_dernier_contact ? daysSince(first.date_dernier_contact) : null,

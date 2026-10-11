@@ -11,6 +11,7 @@ import { useFormat, useLocale, useT } from "@/i18n/client";
 import { WhyPriority } from "@/components/score/why-priority";
 
 import { CommissionEditor } from "./commission-editor";
+import { prospectTitle } from "@/lib/prospects";
 
 // Brief du matin en fonctionnalité secondaire : un bouton ouvre un panneau latéral qui résume la
 // journée (argent récupérable, commission, action du jour, progression, « Pourquoi prioritaire ? »).
@@ -168,7 +169,7 @@ export function MorningBriefPanel({
                             className="flex items-baseline justify-between gap-3 rounded-sm outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25"
                           >
                             <span className="truncate text-body font-semibold text-foreground">
-                              <span className="text-foreground-tertiary tabular-nums">#{index + 1}</span> {row.entreprise}
+                              <span className="text-foreground-tertiary tabular-nums">#{index + 1}</span> {prospectTitle(row)}
                             </span>
                             <span className="shrink-0 text-body font-semibold text-foreground tabular-nums">
                               {amount === null ? "—" : format.euro(amount)}

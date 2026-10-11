@@ -19,7 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SilenceDays } from "@/components/shared/silence-days";
 import type { ProspectListItem } from "@/lib/data/prospects";
 import { daysSince } from "@/lib/format";
-import { DEAL_STAGES, type DealStage } from "@/lib/prospects";
+import { DEAL_STAGES, type DealStage, prospectTitle, prospectContact } from "@/lib/prospects";
 
 // « Mes dossiers » : Kanban par étape de l'affaire. Glisser-déposer à la souris, et menu
 // « Déplacer vers » sur chaque carte (clavier, mobile). Un déplacement change l'étape en base
@@ -83,7 +83,7 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
       toast.error(result.message ?? t.workspace.deals.moveError);
       return;
     }
-    toast.success(t.workspace.deals.moved(row.entreprise, t.enums.stage[stage]), {
+    toast.success(t.workspace.deals.moved(prospectTitle(row), t.enums.stage[stage]), {
       description: t.workspace.deals.recalculated,
       action: previous !== "sans_etape" ? { label: t.common.undo, onClick: () => void move({ ...row, etape: stage }, previous) } : undefined,
     });
@@ -174,9 +174,9 @@ export function KanbanBoard({ rows, onStageChange }: KanbanBoardProps) {
                             href={`/prospects/${row.id}`}
                             className="block truncate rounded-sm text-body font-semibold text-foreground outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25"
                           >
-                            {row.entreprise}
+                            {prospectTitle(row)}
                           </Link>
-                          <p className="truncate text-dense text-foreground-secondary">{row.contact_nom || "—"}</p>
+                          <p className="truncate text-dense text-foreground-secondary">{prospectContact(row) || "—"}</p>
                         </div>
                         <MoveMenu current={stageOf(row)} onMove={(stage) => void move(row, stage)} />
                       </div>

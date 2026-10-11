@@ -25,7 +25,7 @@ export const REPRISE_DAYS = 60;
 export const DERNIER_MESSAGE_DAYS = 120;
 
 export type FollowupProspect = {
-  entreprise: string;
+  entreprise: string | null;
   contact_nom: string | null;
   etape: DealStage | null;
   date_dernier_contact: string | null;
@@ -88,7 +88,8 @@ export function exchangeDate(date: string, today: Date): string {
 }
 
 type Vars = {
-  entreprise: string;
+  /** Entreprise, ou null pour un particulier : elle n'apparaît alors pas dans le message. */
+  entreprise: string | null;
   firstName: string | null;
   /** « du 12 septembre », ou "" si la date est inconnue. */
   du: string;
@@ -103,6 +104,9 @@ type Vars = {
 
 type Template = { subject: (v: Vars) => string; paragraphs: (v: Vars) => string[] };
 
+/** « · Acme SAS » en fin d'objet, rien pour un particulier. */
+const about = (v: Vars) => (v.entreprise ? ` · ${v.entreprise}` : "");
+
 const GREETING = (v: Vars) => (v.firstName ? `Bonjour ${v.firstName},` : "Bonjour,");
 
 const CLOSING: Record<FollowupTone, string> = {
@@ -114,22 +118,22 @@ const CLOSING: Record<FollowupTone, string> = {
 const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
   suivi_echange: {
     formel: {
-      subject: (v) => `Suite à notre échange · ${v.entreprise}`,
+      subject: (v) => `Suite à notre échange${about(v)}`,
       paragraphs: (v) => [
-        `Je me permets de revenir vers vous à la suite de notre échange${v.du ? ` ${v.du}` : ""} concernant ${v.entreprise}.`,
+        `Je me permets de revenir vers vous à la suite de notre échange${v.du ? ` ${v.du}` : ""} concernant ${v.entreprise ?? v.sujet}.`,
         "Avez-vous pu avancer dans votre réflexion ? Je reste à votre disposition pour répondre à vos questions ou préciser les éléments qui vous seraient utiles.",
         "Souhaitez-vous que nous convenions d'un court échange pour faire le point ?",
       ],
     },
     direct: {
-      subject: (v) => `${v.entreprise} : on fait le point ?`,
+      subject: (v) => v.entreprise ? `${v.entreprise} : on fait le point ?` : "On fait le point ?",
       paragraphs: (v) => [
         `Je reviens vers vous après notre échange${v.du ? ` ${v.du}` : ""}.`,
         "Où en est votre réflexion ? Un appel de 15 minutes vous conviendrait-il pour faire le point ?",
       ],
     },
     chaleureux: {
-      subject: (v) => `Des nouvelles de votre projet · ${v.entreprise}`,
+      subject: (v) => `Des nouvelles de votre projet${about(v)}`,
       paragraphs: (v) => [
         "J'espère que tout se passe bien de votre côté.",
         `Je repensais à notre échange${v.du ? ` ${v.du}` : ""} et je voulais prendre de vos nouvelles. Où en est votre projet ?`,
@@ -139,7 +143,7 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
   },
   suivi_proposition: {
     formel: {
-      subject: (v) => `Notre proposition · ${v.entreprise}`,
+      subject: (v) => `Notre proposition${about(v)}`,
       paragraphs: (v) => [
         `Je me permets de revenir vers vous au sujet de la proposition que nous vous avons transmise${v.le ? `, à la suite de notre échange ${v.du}` : ""}.`,
         "Avez-vous eu l'occasion d'en prendre connaissance ? Je reste à votre disposition pour en préciser certains points ou l'ajuster à vos besoins.",
@@ -147,14 +151,14 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
       ],
     },
     direct: {
-      subject: (v) => `Votre avis sur notre proposition · ${v.entreprise}`,
+      subject: (v) => `Votre avis sur notre proposition${about(v)}`,
       paragraphs: (v) => [
         `Avez-vous pu regarder la proposition que nous vous avons transmise${v.du ? ` (notre dernier échange date ${v.du})` : ""} ?`,
         "Si un point est à ajuster, dites-le-moi : je vous fais un retour rapidement. Un appel de 15 minutes vous aiderait-il à trancher ?",
       ],
     },
     chaleureux: {
-      subject: (v) => `Notre proposition, qu'en pensez-vous ? · ${v.entreprise}`,
+      subject: (v) => `Notre proposition, qu'en pensez-vous ?${about(v)}`,
       paragraphs: (v) => [
         "J'espère que vous allez bien.",
         `Je voulais savoir ce que vous pensiez de la proposition que nous vous avons transmise${v.du ? ` suite à notre échange ${v.du}` : ""}. Correspond-elle à ce que vous aviez en tête ?`,
@@ -164,7 +168,7 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
   },
   decision: {
     formel: {
-      subject: (v) => `Prochaines étapes · ${v.entreprise}`,
+      subject: (v) => `Prochaines étapes${about(v)}`,
       paragraphs: (v) => [
         `Je reviens vers vous afin de faire le point sur notre discussion${v.du ? ` ${v.du}` : ""}.`,
         "Reste-t-il des questions ou des éléments à préciser de votre côté avant de prendre votre décision ? Je me tiens à votre disposition pour les traiter rapidement.",
@@ -172,14 +176,14 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
       ],
     },
     direct: {
-      subject: (v) => `${v.entreprise} : où en est votre décision ?`,
+      subject: (v) => v.entreprise ? `${v.entreprise} : où en est votre décision ?` : "Où en est votre décision ?",
       paragraphs: (v) => [
         `Je reviens vers vous pour avancer sur notre discussion${v.du ? ` ${v.du}` : ""}.`,
         "Reste-t-il un point qui vous retient ? Dites-moi lequel et nous verrons ensemble comment y répondre. Pouvons-nous en parler cette semaine ?",
       ],
     },
     chaleureux: {
-      subject: (v) => `On avance ensemble ? · ${v.entreprise}`,
+      subject: (v) => `On avance ensemble ?${about(v)}`,
       paragraphs: (v) => [
         "J'espère que tout va bien pour vous.",
         `Je voulais faire le point avec vous après notre discussion${v.du ? ` ${v.du}` : ""}. Y a-t-il encore des questions ou des points sur lesquels je peux vous aider ?`,
@@ -189,21 +193,21 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
   },
   reprise_contact: {
     formel: {
-      subject: (v) => `Reprise de contact · ${v.entreprise}`,
+      subject: (v) => `Reprise de contact${about(v)}`,
       paragraphs: (v) => [
         `Nous avions échangé${v.le ? ` ${v.le}` : ""} au sujet de ${v.sujet}, et je souhaitais reprendre contact avec vous.`,
         "Votre besoin est-il toujours d'actualité ? Le cas échéant, je me tiens à votre disposition pour en reparler.",
       ],
     },
     direct: {
-      subject: (v) => `Toujours d'actualité ? · ${v.entreprise}`,
+      subject: (v) => `Toujours d'actualité ?${about(v)}`,
       paragraphs: (v) => [
         `Nous avions échangé${v.le ? ` ${v.le}` : ""} au sujet de ${v.sujet}.`,
         "Est-ce toujours d'actualité de votre côté ? Si oui, je vous propose un appel rapide pour repartir sur de bonnes bases.",
       ],
     },
     chaleureux: {
-      subject: (v) => `Des nouvelles ? · ${v.entreprise}`,
+      subject: (v) => `Des nouvelles ?${about(v)}`,
       paragraphs: (v) => [
         "J'espère que vous allez bien.",
         `Cela fait un moment que nous n'avons pas échangé${v.le ? ` : la dernière fois, c'était ${v.le}` : ""}, au sujet de ${v.sujet}. Je voulais prendre de vos nouvelles.`,
@@ -213,21 +217,21 @@ const TEMPLATES: Record<FollowupScenario, Record<FollowupTone, Template>> = {
   },
   dernier_message: {
     formel: {
-      subject: (v) => `Votre projet est-il toujours d'actualité ? · ${v.entreprise}`,
+      subject: (v) => `Votre projet est-il toujours d'actualité ?${about(v)}`,
       paragraphs: (v) => [
         `Nous avions échangé${v.le ? ` ${v.le}` : ""} au sujet de ${v.sujet}. Je ne souhaite pas vous solliciter inutilement.`,
         "Ce sujet est-il toujours d'actualité, ou préférez-vous que je revienne vers vous à un autre moment ? Une réponse brève me suffira.",
       ],
     },
     direct: {
-      subject: (v) => `Je clos le dossier ? · ${v.entreprise}`,
+      subject: (v) => `Je clos le dossier ?${about(v)}`,
       paragraphs: (v) => [
         `Notre dernier échange au sujet de ${v.sujet} remonte ${v.date ? `au ${v.date}` : "à plusieurs mois"}.`,
         "Pour ne pas vous relancer inutilement : est-ce toujours d'actualité, ou dois-je clore le dossier ? Un simple oui ou non me suffit.",
       ],
     },
     chaleureux: {
-      subject: (v) => `Un dernier petit mot · ${v.entreprise}`,
+      subject: (v) => `Un dernier petit mot${about(v)}`,
       paragraphs: (v) => [
         "J'espère que tout va bien de votre côté.",
         `Nous avions parlé de ${v.sujet}${v.le ? ` ${v.le}` : ""}, et je ne voudrais pas vous déranger si les priorités ont changé.`,
@@ -248,7 +252,7 @@ export function renderFollowup(
   const date = prospect.date_dernier_contact ? exchangeDate(prospect.date_dernier_contact, today) : null;
   const hasProposal = prospect.etape === "proposition" || prospect.etape === "negociation";
   const vars: Vars = {
-    entreprise: prospect.entreprise.trim(),
+    entreprise: prospect.entreprise?.trim() || null,
     firstName: contactFirstName(prospect.contact_nom),
     du: date ? `du ${date}` : "",
     le: date ? `le ${date}` : "",

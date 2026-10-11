@@ -11,6 +11,7 @@ import { daysSince } from "@/lib/format";
 import { useFormat, useT } from "@/i18n/client";
 
 import { ScoreRing } from "./score-ring";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // Suite de la file de relance (rangs 4 à 10) : une liste aérée plutôt qu'un tableau, chaque ligne
 // ouvre la fiche ; survol avec teinte et chevron qui avance.
@@ -36,11 +37,11 @@ export function FollowUpQueue({ rows, startRank }: { rows: ProspectRow[]; startR
             <span className="hidden w-6 shrink-0 text-right sm:block text-dense font-semibold text-foreground-tertiary tabular-nums">
               {startRank + index}
             </span>
-            <InitialsAvatar name={row.contact_nom || row.entreprise} size="sm" />
+            <InitialsAvatar name={row.contact_nom || prospectTitle(row)} size="sm" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-body font-semibold text-foreground">{row.entreprise}</span>
+              <span className="block truncate text-body font-semibold text-foreground">{prospectTitle(row)}</span>
               <span className="block truncate text-dense text-foreground-secondary">
-                {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                {[prospectContact(row), row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
               </span>
               {row.date_dernier_contact && (
                 <span className="mt-1.5 block sm:hidden">

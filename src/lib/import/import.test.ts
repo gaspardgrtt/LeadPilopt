@@ -100,6 +100,8 @@ describe("guessMapping", () => {
     expect(mapping).toEqual({
       entreprise: "Entreprise",
       contact: "Contact",
+      prenom: null,
+      nom: null,
       email: "Email",
       telephone: "Téléphone",
       montant: "Montant",
@@ -123,9 +125,9 @@ describe("guessMapping", () => {
     expect(missingRequiredFields(guessMapping(["Société", "Montant"]))).toEqual(["dernier_contact"]);
   });
 
-  it("n'associe pas une même colonne à deux champs", () => {
+  it("n'associe pas « Nom » à l'entreprise (nom seul : à confirmer)", () => {
     const mapping = guessMapping(["Nom", "Email"]);
-    expect(mapping.contact).toBe("Nom");
+    expect(mapping.contact).toBeNull();
     expect(mapping.entreprise).toBeNull();
   });
 });
@@ -135,21 +137,23 @@ describe("buildImportRows", () => {
   const record = (values: string[]) => Object.fromEntries(headers.map((header, i) => [header, values[i] ?? ""]));
   const mapping = guessMapping(headers);
 
-  it("construit les lignes, écarte celles sans entreprise et dédoublonne", () => {
+  it("construit les lignes, garde les particuliers sans entreprise et dédoublonne", () => {
     const preview = buildImportRows(
       [
         record(["Acme SAS", "Claire Martin", "claire@acme.fr", "06 12 34 56 78", "15 000 €", "04/09/2026", "Proposition", "Budget Q4"]),
-        record(["", "Sans entreprise", "x@y.fr"]),
+        record(["", "Particulier Sans Entreprise", "x@y.fr", "", "", "01/09/2026"]),
+        record(["", "", "anonyme@y.fr"]),
         record(["Acme SAS", "Claire Martin", "CLAIRE@acme.fr", "", "16 000", "10/09/2026", "Négociation", ""]),
         record(["Brio", "", "pas-un-email", "", "beaucoup", "hier", "Inconnu", ""]),
       ],
       mapping
     );
 
-    expect(preview.rows).toHaveLength(2);
+    expect(preview.rows).toHaveLength(3);
+    expect(preview.rows.find((row) => row.contact_nom === "Particulier Sans Entreprise")?.entreprise).toBeNull();
     expect(preview.duplicates).toBe(1);
-    expect(preview.skipped).toEqual([{ line: 3, message: "Entreprise manquante : ligne ignorée" }]);
-    expect(preview.warnings.map((w) => w.line)).toEqual([5, 5, 5]);
+    expect(preview.skipped).toEqual([{ line: 4, message: "Ni nom du contact ni entreprise : ligne ignorée" }]);
+    expect(preview.warnings.map((w) => w.line)).toEqual([5, 6, 6, 6]);
 
     const acme = preview.rows.find((row) => row.entreprise === "Acme SAS");
     expect(acme).toMatchObject({
@@ -167,6 +171,7 @@ describe("buildImportRows", () => {
     const [row] = buildImportRows([record(["Acme SAS", "", "claire@acme.fr", "", "15000", "2026-09-04", "Devis", ""])], mapping).rows;
     expect(validateImportRow(row)).toEqual(row);
     expect(validateImportRow({ ...row, entreprise: "" })).toBeNull();
+    expect(validateImportRow({ ...row, entreprise: null, contact_nom: "Claire Martin" })).not.toBeNull();
     expect(validateImportRow({ ...row, montant_eur: -1 })).toBeNull();
     expect(validateImportRow({ ...row, etape: "inventee" })).toBeNull();
     expect(validateImportRow({ ...row, date_dernier_contact: "2026-02-31" })).toBeNull();

@@ -20,13 +20,14 @@ export type Database = {
       prospects: {
         Row: {
           ca_recuperable_eur: number | null
+          cle_import: string | null
           contact_email: string | null
           contact_nom: string | null
           contact_telephone: string | null
           cree_le: string
           date_dernier_contact: string | null
           donnees_brutes: Json
-          entreprise: string
+          entreprise: string | null
           est_oublie: boolean
           etape: Database["public"]["Enums"]["etape_affaire"] | null
           etape_brute: string | null
@@ -45,13 +46,14 @@ export type Database = {
         }
         Insert: {
           ca_recuperable_eur?: number | null
+          cle_import?: string | null
           contact_email?: string | null
           contact_nom?: string | null
           contact_telephone?: string | null
           cree_le?: string
           date_dernier_contact?: string | null
           donnees_brutes?: Json
-          entreprise: string
+          entreprise?: string | null
           est_oublie?: boolean
           etape?: Database["public"]["Enums"]["etape_affaire"] | null
           etape_brute?: string | null
@@ -70,13 +72,14 @@ export type Database = {
         }
         Update: {
           ca_recuperable_eur?: number | null
+          cle_import?: string | null
           contact_email?: string | null
           contact_nom?: string | null
           contact_telephone?: string | null
           cree_le?: string
           date_dernier_contact?: string | null
           donnees_brutes?: Json
-          entreprise?: string
+          entreprise?: string | null
           est_oublie?: boolean
           etape?: Database["public"]["Enums"]["etape_affaire"] | null
           etape_brute?: string | null

@@ -49,6 +49,43 @@ await expectError("A insère un prospect pour B", "insert into public.prospects 
 await expectError("doublon (utilisateur, email, entreprise) à l'import", "insert into public.prospects (utilisateur_id, entreprise, contact_email) values ($1, 'Acme SAS', 'claire@acme.fr')", [A]);
 await db.query("insert into public.prospects (utilisateur_id, entreprise) values ($1, 'SansEmail')", [A]);
 await expectError("doublon sans email (nulls not distinct)", "insert into public.prospects (utilisateur_id, entreprise) values ($1, 'SansEmail')", [A]);
+// --- Particuliers (sans entreprise) : jamais d'entreprise inventée, dédoublonnage par e-mail ou nom + téléphone
+await db.query("insert into public.prospects (utilisateur_id, contact_nom, contact_email) values ($1, 'Jean Martin', 'jean.martin@example.com')", [A]);
+await expectError("particulier en double (même nom, même e-mail)", "insert into public.prospects (utilisateur_id, contact_nom, contact_email) values ($1, 'JEAN MARTIN ', 'jean.martin@example.com')", [A]);
+await db.query("insert into public.prospects (utilisateur_id, contact_nom, contact_email) values ($1, 'Marie Martin', 'jean.martin@example.com')", [A]);
+ok("deux personnes avec la même adresse (couple) restent deux prospects", (await db.query("select count(*)::int n from public.prospects where contact_email = 'jean.martin@example.com'")).rows[0].n === 2);
+await db.query("insert into public.prospects (utilisateur_id, contact_nom, contact_telephone) values ($1, 'Sophie Bernard', '0600000002'), ($1, 'Lucas Petit', '0600000003')", [A]);
+ok("deux particuliers sans e-mail ne sont pas fusionnés", (await db.query("select count(*)::int n from public.prospects where entreprise is null and contact_email is null")).rows[0].n === 2);
+await expectError("particulier sans e-mail en double (même nom, casse différente, même téléphone)", "insert into public.prospects (utilisateur_id, contact_nom, contact_telephone) values ($1, 'sophie bernard', '0600000002')", [A]);
+await expectError("prospect sans entreprise ni nom", "insert into public.prospects (utilisateur_id, contact_email) values ($1, 'anonyme@example.com')", [A]);
+await expectError("prospect sans entreprise avec un nom vide", "insert into public.prospects (utilisateur_id, contact_nom) values ($1, '   ')", [A]);
+await db.query(`insert into public.prospects (utilisateur_id, contact_nom, contact_email, notes) values ($1, 'Jean Martin', 'jean.martin@example.com', 'ré-import')
+  on conflict (utilisateur_id, cle_import) do update set notes = excluded.notes`, [A]);
+ok("ré-import d'un particulier : mis à jour sans doublon", (await db.query("select count(*)::int n from public.prospects where contact_nom = 'Jean Martin' and notes = 'ré-import'")).rows[0].n === 1 && (await db.query("select count(*)::int n from public.prospects where contact_email = 'jean.martin@example.com'")).rows[0].n === 2);
+ok("un particulier n'a pas d'entreprise inventée", (await db.query("select entreprise from public.prospects where contact_nom = 'Jean Martin'")).rows[0].entreprise === null);
+await expectError("cle_import ne peut pas être écrite par l'application", "update public.prospects set cle_import = 'x' where contact_email = 'jean.martin@example.com'");
+await db.query("delete from public.prospects where entreprise is null and utilisateur_id = $1", [A]);
+// --- Fichier de démonstration (40 particuliers) importé deux fois avec la clé d'import de l'application
+{
+  const csv = readFileSync(new URL("../../src/lib/import/__fixtures__/izmo_test_prospects_agence.csv", import.meta.url), "utf8").replace(/^\uFEFF/, "");
+  const [header, ...lines] = csv.trim().split(/\r?\n/);
+  const cols = header.split(",");
+  const rows = lines.map((line) => Object.fromEntries(line.split(",").map((v, i) => [cols[i], v])));
+  const importer = async () => {
+    for (const r of rows) {
+      await db.query(`insert into public.prospects (utilisateur_id, entreprise, contact_nom, contact_email, contact_telephone, date_dernier_contact, notes, donnees_brutes)
+        values ($1, null, $2, $3, $4, $5, $6, $7)
+        on conflict (utilisateur_id, cle_import) do update set notes = excluded.notes, date_dernier_contact = excluded.date_dernier_contact`,
+        [A, `${r.prenom} ${r.nom}`, r.email, r.telephone, r.dernier_contact, r.notes, JSON.stringify(r)]);
+    }
+  };
+  await importer();
+  await importer();
+  const imported = (await db.query("select count(*)::int n, count(*) filter (where entreprise is null)::int sans_entreprise, count(distinct contact_nom)::int noms from public.prospects where import_id is null and contact_email like '%@example.com'")).rows[0];
+  ok(`fichier de démonstration importé deux fois : 40 prospects, aucun doublon, aucune entreprise inventée (${JSON.stringify(imported)})`,
+    imported.n === 40 && imported.sans_entreprise === 40 && imported.noms === 40);
+  await db.query("delete from public.prospects where entreprise is null and utilisateur_id = $1", [A]);
+}
 await expectError("score hors bornes", "update public.prospects set score = 140 where id = $1", [pidA]);
 await expectError("A modifie son email", "update public.utilisateurs set email = 'pirate@ex.fr' where id = $1", [A]);
 await db.query("update public.utilisateurs set nom = 'Alice', seuil_inactivite_jours = 30 where id = $1", [A]);
@@ -92,9 +129,9 @@ await db.query("update public.prospects set statut = 'relance' where entreprise 
 // Ré-import (même clé utilisateur + email + entreprise) : met à jour sans doublon ni écraser le statut.
 await db.query(`insert into public.prospects (utilisateur_id, entreprise, contact_email, montant_eur, etape, date_dernier_contact)
   values ($1, 'Calc Proposition', 'p@calc.fr', 15000, 'proposition', current_date - 34)
-  on conflict (utilisateur_id, contact_email, entreprise) do update set montant_eur = excluded.montant_eur, importe_le = now()`, [A]);
+  on conflict (utilisateur_id, cle_import) do update set montant_eur = excluded.montant_eur, importe_le = now()`, [A]);
 await db.query(`insert into public.prospects (utilisateur_id, entreprise, montant_eur) values ($1, 'SansEmail', 1)
-  on conflict (utilisateur_id, contact_email, entreprise) do update set montant_eur = excluded.montant_eur`, [A]);
+  on conflict (utilisateur_id, cle_import) do update set montant_eur = excluded.montant_eur`, [A]);
 ok("ré-import : aucun doublon (email nul compris)", (await db.query("select count(*)::int n from public.prospects where entreprise in ('Calc Proposition', 'SansEmail')")).rows[0].n === 2);
 ok("ré-import : statut LeadPilot conservé", (await db.query("select statut from public.prospects where entreprise = 'Calc Proposition'")).rows[0].statut === "relance");
 const updated = (await db.query("select public.recalculer_prospects() as n")).rows[0].n;

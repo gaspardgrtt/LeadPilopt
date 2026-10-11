@@ -13,6 +13,7 @@ import { useFormat, useT } from "@/i18n/client";
 import type { ScoreExplanation } from "@/lib/scoring/score";
 
 import { ScoreRing } from "./score-ring";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // Les trois opportunités les plus rentables, en grandes cartes (inspiration Attio / Notion Calendar) :
 // la carte entière ouvre la fiche, avec élévation et bordure en dégradé au survol. La première est
@@ -66,11 +67,11 @@ export function PriorityCards({ rows }: { rows: ProspectRow[] }) {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   {/* Entre 768 et 1280 px, les trois cartes sont étroites : l'avatar laisse la place au nom. */}
-                  <InitialsAvatar name={row.contact_nom || row.entreprise} size="md" className="md:max-xl:hidden" />
+                  <InitialsAvatar name={row.contact_nom || prospectTitle(row)} size="md" className="md:max-xl:hidden" />
                   <div className="min-w-0">
-                    <p className="truncate text-[15px] leading-6 font-semibold text-foreground">{row.entreprise}</p>
+                    <p className="truncate text-[15px] leading-6 font-semibold text-foreground">{prospectTitle(row)}</p>
                     <p className="line-clamp-2 text-dense text-foreground-secondary">
-                      {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                      {[prospectContact(row), row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
                     </p>
                   </div>
                 </div>

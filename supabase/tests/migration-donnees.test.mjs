@@ -80,6 +80,10 @@ for (const table of Object.keys(before)) {
 const newRelanceCols = after.relances.map((r) => [r.type, r.canal, r.resume, r.effectuee_le, r.prochaine_action_le]);
 ok("relances existantes : type « brouillon », nouvelles colonnes vides", newRelanceCols.every(([type, ...rest]) => type === "brouillon" && rest.every((v) => v === null)));
 ok("prospects existants : aucune prochaine action inventée", after.prospects.every((p) => p.prochaine_action_le === null));
+if (after.prospects[0].cle_import !== undefined) {
+  const keys = after.prospects.map((p) => `${p.utilisateur_id}|${p.cle_import}`);
+  ok("prospects existants : clé d'import calculée pour chaque ligne, sans doublon", keys.every((k) => !k.endsWith("|null")) && new Set(keys).size === keys.length);
+}
 for (const uid of [A, B]) {
   await db.query("select set_config('request.jwt.claim.sub', $1, false)", [uid]);
   const kpi = (await db.query("select * from public.tableau_de_bord()")).rows[0];

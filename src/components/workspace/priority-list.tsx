@@ -15,6 +15,7 @@ import type { ProspectRow } from "@/components/shared/prospect-table";
 import { WhyPriority } from "@/components/score/why-priority";
 import { daysSince } from "@/lib/format";
 import type { ProspectStatus } from "@/lib/prospects";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // « Mes priorités » : la liste de travail complète des dossiers oubliés à traiter, du plus
 // rentable au moins rentable, chacun avec « Pourquoi prioritaire ? » et ses deux actions
@@ -42,7 +43,7 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
       toast.error(result.message ?? t.workspace.statusError);
       return;
     }
-    toast.success(t.workspace.statusChanged(row.entreprise, t.enums.status[next]), {
+    toast.success(t.workspace.statusChanged(prospectTitle(row), t.enums.status[next]), {
       action: { label: t.common.undo, onClick: () => void changeStatus(row, previous, next) },
     });
   }
@@ -67,16 +68,16 @@ export function PriorityList({ rows, onStatusChange }: PriorityListProps) {
                   <span className="mt-2 w-6 shrink-0 text-right text-dense font-semibold text-foreground-tertiary tabular-nums">
                     {index + 1}
                   </span>
-                  <InitialsAvatar name={row.contact_nom || row.entreprise} size="md" />
+                  <InitialsAvatar name={row.contact_nom || prospectTitle(row)} size="md" />
                   <div className="min-w-0 flex-1">
                     <Link
                       href={`/prospects/${row.id}`}
                       className="block truncate rounded-sm text-[15px] leading-6 font-semibold text-foreground outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25"
                     >
-                      {row.entreprise}
+                      {prospectTitle(row)}
                     </Link>
                     <p className="truncate text-dense text-foreground-secondary">
-                      {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+                      {[prospectContact(row), row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {row.date_dernier_contact && <SilenceDays days={daysSince(row.date_dernier_contact)} relative />}

@@ -1,0 +1,41 @@
+﻿nom,prenom,email,telephone,dernier_contact,notes
+Martin,Jean,jean.martin@example.com,0600000001,2026-09-18,Acheteur ; maison T4 avec jardin à La Rochelle ; budget 420 000 € ; visite à Périgny ; voulait réfléchir 48 h ; relance promise.
+Bernard,Sophie,sophie.bernard@example.com,0600000002,2026-08-22,Vendeuse ; estimation maison à Aytré autour de 365 000 € ; aucun mandat signé ; avait demandé un rappel début septembre.
+Petit,Lucas,lucas.petit@example.com,0600000003,2026-10-06,Acheteur ; appartement T2 centre-ville ; budget 210 000 € ; premier échange récent ; doit envoyer ses critères précis.
+Robert,Emma,emma.robert@example.com,0600000004,2026-09-02,Acheteuse ; appartement avec balcon ; budget 275 000 € ; visite effectuée ; inquiétude sur les charges ; vérifier si seconde visite souhaitée.
+Richard,Hugo,hugo.richard@example.com,0600000005,2026-08-14,Vendeur ; appartement à La Rochelle ; estimation réalisée ; comparait plusieurs agences ; aucun retour enregistré.
+Durand,Chloé,chloe.durand@example.com,0600000006,2026-09-27,Acheteuse ; maison 3 chambres autour de Lagord ; budget 390 000 € ; financement en cours ; refaire un point après rendez-vous bancaire.
+Dubois,Nathan,nathan.dubois@example.com,0600000007,2026-07-29,Acheteur ; investissement locatif ; budget 180 000 € ; simulation de rentabilité demandée et envoyée ; aucun suivi noté.
+Moreau,Léa,lea.moreau@example.com,0600000008,2026-10-08,Acheteuse ; premier contact via annonce ; souhaite visiter un T3 ; créneaux à proposer.
+Laurent,Louis,louis.laurent@example.com,0600000009,2026-08-30,Vendeur ; maison à Puilboreau ; estimation indicative 445 000 € ; souhaitait attendre la rentrée avant de décider.
+Simon,Manon,manon.simon@example.com,0600000010,2026-09-10,Acheteuse ; maison avec extérieur ; budget 350 000 € ; visite appréciée mais hésitation sur le quartier ; proposer des biens comparables.
+Michel,Arthur,arthur.michel@example.com,0600000011,2026-08-05,Acheteur ; appartement ancien résidence principale ; budget 240 000 € ; bien initial vendu ; vérifier si recherche toujours active.
+Lefebvre,Inès,ines.lefebvre@example.com,0600000012,2026-09-25,Vendeuse ; appartement T3 à La Rochelle ; estimation réalisée ; veut vendre avant d'acheter ; devait transmettre les diagnostics.
+Leroy,Gabriel,gabriel.leroy@example.com,0600000013,2026-09-01,Acheteur ; maison à rénover ; budget 300 000 € ; annonce envoyée sans réponse ; vérifier si le bien convenait.
+Roux,Camille,camille.roux@example.com,0600000014,2026-08-19,Acheteuse ; studio investissement étudiant ; budget 125 000 € ; rentabilité envoyée ; relance à prévoir si projet actif.
+David,Raphaël,raphael.david@example.com,0600000015,2026-10-03,Acheteur ; T3 avec parking ; budget 265 000 € ; critères reçus ; prochaine étape à convenir.
+Bertrand,Jade,jade.bertrand@example.com,0600000016,2026-07-17,Vendeuse ; maison familiale à La Jarrie ; estimation faite ; voulait en parler à sa famille ; aucun retour récent.
+Morel,Adam,adam.morel@example.com,0600000017,2026-09-16,Acheteur ; maison proche transports ; budget 330 000 € ; visite annulée pour raison professionnelle ; proposer un nouveau créneau.
+Fournier,Louise,louise.fournier@example.com,0600000018,2026-08-27,Acheteuse ; appartement avec ascenseur ; budget 295 000 € ; deux biens envoyés ; aucun retour sur les propositions.
+Girard,Maël,mael.girard@example.com,0600000019,2026-09-29,Vendeur ; estimation d'un appartement hérité ; premier rendez-vous à confirmer ; échange récent.
+Bonnet,Sarah,sarah.bonnet@example.com,0600000020,2026-08-11,Acheteuse ; maison avec jardin autour de Dompierre-sur-Mer ; budget 375 000 € ; financement annoncé comme validé ; dossier à reprendre.
+Dupont,Noah,noah.dupont@example.com,0600000021,2026-09-06,Acheteur ; visite d'un T2 ; trouve le prix élevé ; proposer une négociation ou des alternatives.
+Lambert,Eva,eva.lambert@example.com,0600000022,2026-08-02,Vendeuse ; maison à Nieul-sur-Mer ; estimation réalisée ; attendait un retour sur le prix conseillé ; aucune suite consignée.
+Fontaine,Tom,tom.fontaine@example.com,0600000023,2026-10-07,Acheteur ; demande reçue pour une maison T4 ; budget à préciser ; prise de contact très récente.
+Rousseau,Lina,lina.rousseau@example.com,0600000024,2026-08-25,Acheteuse ; achat après mutation professionnelle ; budget 320 000 € ; devait connaître sa date de mutation ; reprendre contact pour actualiser le projet.
+Vincent,Ethan,ethan.vincent@example.com,0600000025,2026-09-12,Acheteur ; appartement neuf ou récent ; budget 260 000 € ; question sur frais de copropriété ; réponse à vérifier.
+Muller,Zoé,zoe.muller@example.com,0600000026,2026-07-31,Vendeur ; maison à Sainte-Soulle ; prix envisagé 410 000 € ; projet repoussé à l'automne ; reprendre des nouvelles.
+Lefèvre,Mathis,mathis.lefevre@example.com,0600000027,2026-09-20,Acheteur ; maison avec garage ; budget 400 000 € ; avait demandé une visite le week-end ; vérifier si planifiée.
+Faure,Alice,alice.faure@example.com,0600000028,2026-08-16,Acheteuse ; petit immeuble de rapport ; budget 500 000 € ; analyse de deux annonces envoyée ; pas de réponse.
+Andre,Sacha,sacha.andre@example.com,0600000029,2026-09-30,Acheteur ; recherche T2 proche gare ; budget 195 000 € ; qualifier les critères au prochain appel.
+Mercier,Mila,mila.mercier@example.com,0600000030,2026-08-09,Vendeuse ; appartement suite à déménagement ; estimation autour de 230 000 € ; souhaitait comparer le net vendeur ; suivi non renseigné.
+Blanc,Paul,paul.blanc@example.com,0600000031,2026-09-04,Acheteur ; maison de plain-pied ; budget 360 000 € ; dernier bien refusé pour travaux ; envoyer de nouvelles options.
+Guerin,Nina,nina.guerin@example.com,0600000032,2026-08-31,Acheteuse ; projet dans 3 à 6 mois ; budget 280 000 € ; attendait la vente de son logement ; statut à actualiser.
+Boyer,Eliott,eliott.boyer@example.com,0600000033,2026-10-01,Vendeur ; demande d'estimation en ligne ; souhaite être rappelé en soirée ; rappel à organiser.
+Garnier,Ambre,ambre.garnier@example.com,0600000034,2026-08-12,Acheteuse ; appartement avec terrasse ; budget 315 000 € ; n'avait pas pu visiter un bien apprécié ; proposer un créneau si projet actif.
+Chevalier,Malo,malo.chevalier@example.com,0600000035,2026-09-14,Acheteur ; investisseur ; T2 proche universités ; budget 170 000 € ; demande d'informations locatives ; suivi à vérifier.
+Francois,Jeanne,jeanne.francois@example.com,0600000036,2026-07-24,Vendeuse ; maison familiale ; estimation réalisée ; attendait des travaux avant mise en vente ; vérifier calendrier.
+Legrand,Oscar,oscar.legrand@example.com,0600000037,2026-09-23,Acheteur ; appartement T4 ; budget 340 000 € ; a demandé les procès-verbaux de copropriété ; vérifier transmission.
+Gauthier,Rose,rose.gauthier@example.com,0600000038,2026-08-20,Acheteuse ; maison avec jardin ; budget 430 000 € ; échange positif après visite ; prochaine étape non définie.
+Garcia,Aaron,aaron.garcia@example.com,0600000039,2026-09-08,Acheteur ; bien à rénover ; budget 250 000 € ; avait demandé un rappel après déplacement professionnel ; aucun suivi indiqué.
+Perrin,Anna,anna.perrin@example.com,0600000040,2026-08-28,Vendeuse ; T2 ; hésite entre vendre et louer ; comparaison vente/location demandée ; résultat à présenter.

@@ -20,17 +20,14 @@ import { SilenceDays } from "@/components/shared/silence-days";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { StatusMenu } from "@/components/shared/status-menu";
 import { daysSince } from "@/lib/format";
-import {
-  type DealStage,
-  type ProspectStatus,
-} from "@/lib/prospects";
+import { type DealStage, type ProspectStatus, prospectContact, prospectTitle } from "@/lib/prospects";
 import type { ScoreExplanation } from "@/lib/scoring/score";
 
 // Tableau de prospects partagé par E3 (top 10) et E4 (liste complète).
 // Les lignes ouvrent la fiche ; le statut se change en place via `onStatusChange`.
 export type ProspectRow = {
   id: string;
-  entreprise: string;
+  entreprise: string | null;
   contact_nom: string | null;
   montant_eur: number | null;
   etape: DealStage | null;
@@ -76,7 +73,7 @@ export function ProspectTable({
       toast.error(result.message ?? t.workspace.statusError);
       return;
     }
-    toast.success(t.workspace.statusChanged(row.entreprise, t.enums.status[status]), {
+    toast.success(t.workspace.statusChanged(prospectTitle(row), t.enums.status[status]), {
       action: {
         label: t.common.undo,
         onClick: () => void changeStatus({ ...row, statut: status }, previous),
@@ -114,11 +111,11 @@ export function ProspectTable({
                     href={href}
                     className="block truncate text-body font-semibold text-foreground outline-none after:absolute after:inset-0 focus-visible:underline"
                   >
-                    {row.entreprise}
+                    {prospectTitle(row)}
                   </Link>
                   <span className="block truncate text-dense text-foreground-secondary">
                     {[
-                      row.contact_nom,
+                      prospectContact(row),
                       row.etape ? t.enums.stage[row.etape] : null,
                     ]
                       .filter(Boolean)
@@ -183,11 +180,11 @@ export function ProspectTable({
                     href={href}
                     className="rounded-sm font-medium outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-primary/25"
                   >
-                    {row.entreprise}
+                    {prospectTitle(row)}
                   </Link>
-                  {row.contact_nom && (
+                  {prospectContact(row) && (
                     <span className="block text-dense text-foreground-tertiary">
-                      {row.contact_nom}
+                      {prospectContact(row)}
                     </span>
                   )}
                 </TableCell>

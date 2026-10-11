@@ -8,6 +8,7 @@ import { SilenceDays } from "@/components/shared/silence-days";
 import type { Format } from "@/lib/format";
 import { getI18n } from "@/i18n/server";
 import { FLOOR_DAY, type RiskAnalysis, type RiskInput } from "@/lib/risk/risk";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // « Dossiers à risque » (présentation) : les dossiers qui vont être oubliés cette semaine et ceux
 // qui perdent de l'argent récupérable chaque jour sans relance. Règles affichées en clair.
@@ -36,11 +37,11 @@ function RiskRow({
         href={`/prospects/${row.id}#relance`}
         className="group flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-3 py-3 outline-none transition-colors hover:bg-primary-soft/50 focus-visible:ring-[3px] focus-visible:ring-primary/25 sm:flex-nowrap"
       >
-        <InitialsAvatar name={row.contact_nom || row.entreprise} size="sm" />
+        <InitialsAvatar name={row.contact_nom || prospectTitle(row)} size="sm" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-body font-semibold text-foreground">{row.entreprise}</span>
+          <span className="block truncate text-body font-semibold text-foreground">{prospectTitle(row)}</span>
           <span className="block truncate text-dense text-foreground-secondary">
-            {[row.contact_nom, row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
+            {[prospectContact(row), row.etape ? t.enums.stage[row.etape] : null].filter(Boolean).join(" · ") || "—"}
           </span>
         </span>
         <span className="flex items-center gap-2 max-sm:order-last max-sm:w-full max-sm:pl-11">

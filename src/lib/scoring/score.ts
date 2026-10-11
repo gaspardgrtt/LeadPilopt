@@ -1,4 +1,4 @@
-import type { DealStage } from "@/lib/prospects";
+import { prospectTitle, type DealStage } from "@/lib/prospects";
 import { formatEuro } from "@/lib/format";
 import type { Langue } from "@/lib/preferences/preferences";
 import { getMessages } from "@/i18n";
@@ -82,7 +82,7 @@ export type ScoreContext = {
 
 /** Contexte du compte, à partir de toutes ses affaires (les affaires fermées sont ignorées). */
 export function buildScoreContext(
-  prospects: (ScoringInput & { entreprise: string })[],
+  prospects: (ScoringInput & { entreprise: string | null; contact_nom?: string | null })[],
   averageBasket: number | null,
   today: Date = new Date()
 ): ScoreContext {
@@ -97,7 +97,7 @@ export function buildScoreContext(
     const ca = recoverableRevenue(f);
     if (ca > max) {
       max = ca;
-      best = { entreprise: prospect.entreprise, recoverable: ca };
+      best = { entreprise: prospectTitle({ entreprise: prospect.entreprise, contact_nom: prospect.contact_nom ?? null }), recoverable: ca };
     }
     sums.amount += f.amount;
     sums.weight += f.weight;

@@ -20,6 +20,7 @@ import type { FollowupTone } from "@/lib/prospects";
 import { FollowupPanel, OppositionControl, ProspectStatusControl } from "./prospect-actions";
 import { NextActionControl } from "./activity-controls";
 import { ActivityHistory } from "./activity-history";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // E5 — vue de la fiche (présentation) : pourquoi ce dossier compte, la relance à envoyer, puis les
 // informations. Alimentée par la page (données réelles) et par l'aperçu /ui/apercu/prospect.
@@ -54,7 +55,7 @@ export async function ProspectView({ detail, explanation, defaultTone }: Prospec
   return (
     <>
       <PageHeader
-        breadcrumb={[{ label: t.sheet.prospects, href: "/prospects" }, { label: prospect.entreprise }]}
+        breadcrumb={[{ label: t.sheet.prospects, href: "/prospects" }, { label: prospectTitle(prospect) }]}
         backHref="/prospects"
         className="mb-5 sm:mb-8"
       />
@@ -62,16 +63,16 @@ export async function ProspectView({ detail, explanation, defaultTone }: Prospec
       <Card className="p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-            <InitialsAvatar name={prospect.contact_nom || prospect.entreprise} size="lg" />
+            <InitialsAvatar name={prospect.contact_nom || prospectTitle(prospect)} size="lg" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                 <h1 className="min-w-0 text-[19px] leading-7 font-semibold tracking-[-0.01em] break-words text-foreground sm:text-[20px]">
-                  {prospect.entreprise}
+                  {prospectTitle(prospect)}
                 </h1>
                 <ProspectStatusControl prospectId={prospect.id} status={prospect.statut} />
               </div>
               <p className="mt-0.5 text-body text-foreground-secondary">
-                {[prospect.contact_nom, stage].filter(Boolean).join(" · ") || DASH}
+                {[prospectContact(prospect), stage].filter(Boolean).join(" · ") || DASH}
               </p>
             </div>
           </div>

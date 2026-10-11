@@ -54,10 +54,9 @@ export async function importBatch(importId: string, rows: unknown[]): Promise<Im
   const payload = validated.map((row) => ({ ...row!, utilisateur_id: user.id, import_id: importId, importe_le: now }));
 
   const supabase = await createClient();
-  // Pas de `statut` dans la charge utile : un ré-import ne touche jamais au suivi LeadPilot.
-  const { error } = await supabase
-    .from("prospects")
-    .upsert(payload, { onConflict: "utilisateur_id,contact_email,entreprise" });
+  // Pas de `statut` dans la charge utile : un ré-import ne touche jamais au suivi Izmo.
+  // `cle_import` (colonne générée) : e-mail + entreprise, ou nom + e-mail/téléphone d'un particulier.
+  const { error } = await supabase.from("prospects").upsert(payload, { onConflict: "utilisateur_id,cle_import" });
   if (error) {
     console.error("[import] enregistrement d'un lot impossible", { code: error.code, message: error.message });
     return { ok: false, message: t.import.errors.generic };

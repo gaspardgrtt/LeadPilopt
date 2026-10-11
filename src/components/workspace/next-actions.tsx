@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import type { NextActionItem } from "@/lib/data/prospects";
 import { getI18n } from "@/i18n/server";
 import { DueBadge } from "@/app/(app)/prospects/[id]/activity-controls";
+import { prospectTitle, prospectContact } from "@/lib/prospects";
 
 // « Prochaines actions » (Mes priorités) : rappels internes programmés par l'agent, du plus urgent
 // au plus lointain. Rien n'apparaît tant qu'aucun rappel n'a été programmé.
@@ -27,10 +28,10 @@ export async function NextActions({ items }: { items: NextActionItem[] }) {
                 href={`/prospects/${item.id}#historique`}
                 className="flex items-center gap-3 rounded-md py-2.5 outline-none hover:bg-surface-tinted/60 focus-visible:ring-[3px] focus-visible:ring-primary/25 sm:px-2"
               >
-                <InitialsAvatar name={item.contact_nom || item.entreprise} size="sm" />
+                <InitialsAvatar name={item.contact_nom || prospectTitle(item)} size="sm" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body font-medium text-foreground">{item.entreprise}</span>
-                  {item.contact_nom && <span className="block truncate text-dense text-foreground-secondary">{item.contact_nom}</span>}
+                  <span className="block truncate text-body font-medium text-foreground">{prospectTitle(item)}</span>
+                  {prospectContact(item) && <span className="block truncate text-dense text-foreground-secondary">{item.contact_nom}</span>}
                 </span>
                 <StatusBadge status={item.statut} className="hidden sm:inline-flex" />
                 {item.prochaine_action_le && <DueBadge date={item.prochaine_action_le} />}
